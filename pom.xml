@@ -32,9 +32,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.iotdb</groupId>
+			<groupId>cn.edu.tsinghua</groupId>
 			<artifactId>iotdb-jdbc</artifactId>
-			<version>0.8.0-SNAPSHOT</version>
+			<version>0.7.0</version>
 		</dependency>
 
 		<dependency>
@@ -134,10 +134,10 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-assembly-plugin</artifactId> 
-				<version>2.5.5</version> <executions> <execution> <configuration> <descriptorRefs> 
-				<descriptorRef>jar-with-dependencies</descriptorRef> </descriptorRefs> </configuration> 
-				<id>make-assembly</id> <phase>package</phase> <goals> <goal>single</goal> 
+			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-assembly-plugin</artifactId>
+				<version>2.5.5</version> <executions> <execution> <configuration> <descriptorRefs>
+				<descriptorRef>jar-with-dependencies</descriptorRef> </descriptorRefs> </configuration>
+				<id>make-assembly</id> <phase>package</phase> <goals> <goal>single</goal>
 				</goals> </execution> </executions> </plugin> -->
 		</plugins>
 	</build>
