@@ -14,6 +14,11 @@ fi
 HOST_NAME=liurui
 IS_SSH_CHANGE_PORT=false
 SSH_PORT=2222
+#IOTDB_PATH=incubator-iotdb/iotdb
+IOTDB_PATH=iotdb
+REPO_NAME=iotdb
+GIT_REPO=https://github.com/thulab/iotdb.git
+
 IOTDB_CONF=$1
 IS_TEST_BASELINE=$2
 BRANCH=$3
@@ -45,11 +50,11 @@ else
     rm -rf $BENCHMARK_HOME/iotdb-$BRANCH
     mkdir $BENCHMARK_HOME/iotdb-$BRANCH
     cd $BENCHMARK_HOME/iotdb-$BRANCH
-    git clone https://github.com/apache/incubator-iotdb.git
-    cd $BENCHMARK_HOME/iotdb-$BRANCH/incubator-iotdb
+    git clone $GIT_REPO
+    cd $BENCHMARK_HOME/iotdb-$BRANCH/$REPO_NAME
     git checkout $BRANCH
     mvn clean install -Dmaven.test.skip=true
-    echo "install incubator-iotdb locally finished"
+    echo "install iotdb locally finished"
 fi
 cd $BENCHMARK_HOME
 mvn clean package -Dmaven.test.skip=true
@@ -79,9 +84,9 @@ if [ "${IS_SSH_CHANGE_PORT#*=}" = "true" ]; then
         COMMIT_ID=$(ssh -p $SSH_PORT $SERVER_HOST "cd $LOG_STOP_FLAG_PATH;git rev-parse HEAD")
         sed -i "s/^VERSION.*$/VERSION=${COMMIT_ID}/g" $BENCHMARK_HOME/conf/config.properties
         echo "initial database in server..."
-        ssh -p $SSH_PORT $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/incubator-iotdb/iotdb/iotdb/bin/stop-server.sh;sleep 5"
-        ssh -p $SSH_PORT $SERVER_HOST "cd $LOG_STOP_FLAG_PATH;rm -rf ./*;git clone https://github.com/apache/incubator-iotdb.git;cd ./incubator-iotdb;mvn clean package -Dmaven.test.skip=true"
-        ssh -p $SSH_PORT $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/incubator-iotdb/iotdb/iotdb/bin/start-server.sh > /dev/null 2>&1 &"
+        ssh -p $SSH_PORT $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/$IOTDB_PATH/iotdb/bin/stop-server.sh;sleep 5"
+        ssh -p $SSH_PORT $SERVER_HOST "cd $LOG_STOP_FLAG_PATH;rm -rf ./*;git clone $GIT_REPO;cd ./$REPO_NAME;mvn clean package -Dmaven.test.skip=true"
+        ssh -p $SSH_PORT $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/$IOTDB_PATH/iotdb/bin/start-server.sh > /dev/null 2>&1 &"
         echo 'wait a few seconds for launching IoTDB...'
         sleep 20
     fi
@@ -109,32 +114,32 @@ else
         echo "initial database in server..."
         if [ $IS_TEST_BASELINE = "true" ]; then
             echo "Testing baseline IoTDB version: v0.7.0"
-            ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH;rm -rf ./baseline_iotdb;mkdir ./baseline_iotdb;cd ./baseline_iotdb;git clone https://github.com/apache/incubator-iotdb.git;cd ./incubator-iotdb;git checkout v0.7.0;mvn clean package -Dmaven.test.skip=true"
-            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb/iotdb/bin/stop-server.sh;sleep 5"
+            ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH;rm -rf ./baseline_iotdb;mkdir ./baseline_iotdb;cd ./baseline_iotdb;git clone $GIT_REPO;cd ./$REPO_NAME;git checkout v0.7.0;mvn clean package -Dmaven.test.skip=true"
+            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/baseline_iotdb/$IOTDB_PATH/bin/stop-server.sh;sleep 5"
             #start server system information recording
             ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-benchmark/ser-benchmark.sh > /dev/null 2>&1 &"
-            COMMIT_ID=$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb;git tag -l | tail -n 1")"BASELINE_commit_id:"$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb;git rev-parse HEAD")
+            COMMIT_ID=$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/baseline_iotdb/$REPO_NAME;git tag -l | tail -n 1")"BASELINE_commit_id:"$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/baseline_iotdb/$REPO_NAME;git rev-parse HEAD")
             sed -i "s/^VERSION.*$/VERSION=${COMMIT_ID}/g" $BENCHMARK_HOME/conf/config.properties
-            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-engine.properties $SERVER_HOST:$LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb/iotdb/conf
-            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-env.sh $SERVER_HOST:$LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb/iotdb/conf
-            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/baseline_iotdb/incubator-iotdb/iotdb/bin/start-server.sh > /dev/null 2>&1 &"
+            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-engine.properties $SERVER_HOST:$LOG_STOP_FLAG_PATH/baseline_iotdb/$IOTDB_PATH/conf
+            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-env.sh $SERVER_HOST:$LOG_STOP_FLAG_PATH/baseline_iotdb/$IOTDB_PATH/conf
+            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/baseline_iotdb/$IOTDB_PATH/bin/start-server.sh > /dev/null 2>&1 &"
         else
             echo "Testing IoTDB branch: $BRANCH"
             echo "Start to install IoTDB branch $BRANCH on remote server"
-            ssh $SERVER_HOST "rm -rf $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;mkdir $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;git clone https://github.com/apache/incubator-iotdb.git;cd ./incubator-iotdb;git checkout $BRANCH;mvn clean package -Dmaven.test.skip=true"
+            ssh $SERVER_HOST "rm -rf $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;mkdir $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH;git clone $GIT_REPO;cd ./$REPO_NAME;git checkout $BRANCH;mvn clean package -Dmaven.test.skip=true"
             echo "Install IoTDB branch $BRANCH complete"
             echo "Stop existing IoTDB service on remote server"
-            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb/iotdb/iotdb/bin/stop-server.sh;sleep 5"
+            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$IOTDB_PATH/iotdb/bin/stop-server.sh;sleep 5"
             echo "Existing IoTDB service on remote server stopped"
             echo "Start server system information recording"
             ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-benchmark/ser-benchmark.sh > /dev/null 2>&1 &"
-            COMMIT_ID=$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb;git tag -l | tail -n 1")"_commit_id:"$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb;git rev-parse HEAD")
+            COMMIT_ID=$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$REPO_NAME;git tag -l | tail -n 1")"_commit_id:"$(ssh $SERVER_HOST "cd $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$REPO_NAME;git rev-parse HEAD")
             sed -i "s/^VERSION.*$/VERSION=${COMMIT_ID}/g" $BENCHMARK_HOME/conf/config.properties
             echo "Setting IoTDB configuration including iotdb-engine.properties and iotdb-env.sh"
-            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-engine.properties $SERVER_HOST:$LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb/iotdb/iotdb/conf
-            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-env.sh $SERVER_HOST:$LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb/iotdb/iotdb/conf
+            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-engine.properties $SERVER_HOST:$LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$IOTDB_PATH/iotdb/conf
+            scp $BENCHMARK_HOME/$IOTDB_CONF/iotdb-env.sh $SERVER_HOST:$LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$IOTDB_PATH/iotdb/conf
             echo "Start IoTDB service on remote server"
-            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/incubator-iotdb/iotdb/iotdb/bin/start-server.sh > /dev/null 2>&1 &"
+            ssh $SERVER_HOST "sh $LOG_STOP_FLAG_PATH/iotdb-$BRANCH/$IOTDB_PATH/iotdb/bin/start-server.sh > /dev/null 2>&1 &"
         fi
         echo 'wait a few seconds for launching IoTDB...'
         sleep 40
