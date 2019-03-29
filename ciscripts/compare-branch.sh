@@ -17,7 +17,7 @@ SSH_PORT=2222
 #IOTDB_PATH=incubator-iotdb/iotdb
 IOTDB_PATH=iotdb
 REPO_NAME=iotdb
-GIT_REPO=https://github.com/thulab/iotdb.git
+GIT_REPO="https://github.com/thulab/iotdb.git"
 
 IOTDB_CONF=$1
 IS_TEST_BASELINE=$2
@@ -51,7 +51,7 @@ else
     mkdir $BENCHMARK_HOME/iotdb-$BRANCH
     cd $BENCHMARK_HOME/iotdb-$BRANCH
     git clone $GIT_REPO
-    cd $BENCHMARK_HOME/iotdb-$BRANCH/$REPO_NAME
+    cd $BENCHMARK_HOME/iotdb-${BRANCH}/${REPO_NAME}
     git checkout $BRANCH
     mvn clean install -Dmaven.test.skip=true
     echo "install iotdb locally finished"
