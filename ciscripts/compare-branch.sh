@@ -15,7 +15,7 @@ HOST_NAME=liurui
 IS_SSH_CHANGE_PORT=false
 SSH_PORT=2222
 #IOTDB_PATH=incubator-iotdb/iotdb
-IOTDB_PATH=iotdb
+IOTDB_PATH=iotdb/iotdb
 REPO_NAME=iotdb
 GIT_REPO="https://github.com/thulab/iotdb.git"
 
