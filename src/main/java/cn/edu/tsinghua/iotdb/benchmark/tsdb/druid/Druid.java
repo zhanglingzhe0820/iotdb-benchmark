@@ -31,6 +31,12 @@ import com.twitter.util.Future;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,8 +44,18 @@ import java.util.Map;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +63,7 @@ public class Druid implements IDatabase {
 
   private static Config config = ConfigDescriptor.getInstance().getConfig();
   private static final Logger LOGGER = LoggerFactory.getLogger(Druid.class);
-  private String dataSource = "usermetric";
+  private String dataSource = "userMetric";
   private Service<List<Map<String, Object>>, Integer> druidService;
   private Timestamper<Map<String, Object>> timestamper;
   private CuratorFramework curator;
@@ -65,7 +81,12 @@ public class Druid implements IDatabase {
   private int replicants = 1;
   private Period warmingPeriod = new Period().withMinutes(
       10); // does not help for first task, but spawns task for second segment 10 minutes earlier, see: https://groups.google.com/forum/#!topic/druid-user/UT5JNSZqAuk
-
+  private int retries = 3;
+  private CloseableHttpClient client;
+  private URL urlQuery = null;
+  private String queryIP = "localhost"; // normally broker node,but historical/realtime is possible
+  private String queryPort = "8090"; // normally broker node,but historical/realtime is possible
+  private String queryURL = "/druid/v2/?pretty";
 
   public Druid() {
     dimensions.add("device");
@@ -111,6 +132,13 @@ public class Druid implements IDatabase {
                 .build()
         )
         .buildJavaService();
+    RequestConfig requestConfig = RequestConfig.custom().build();
+    client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
+    try {
+      urlQuery = new URL("http", queryIP, Integer.valueOf(queryPort), queryURL );
+    } catch (MalformedURLException e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
@@ -140,18 +168,17 @@ public class Druid implements IDatabase {
 
     for (Record record : batch.getRecords()) {
       long time = record.getTimestamp();
-      Map<String, Object> data = new HashMap<String, Object>();
+      Map<String, Object> data = new HashMap<>();
       // Calculate special Timestamp in special druid time range
       // (workload time range shifted to actual time)
       data.put("timestamp", System.currentTimeMillis() + (time - Constants.START_TIMESTAMP));
-      data.put("group", deviceSchema.getGroup());
       data.put("device", deviceSchema.getDevice());
       int i = 0;
       for (String s : deviceSchema.getSensors()) {
         data.put(s, record.getRecordDataValue().get(i));
         i++;
       }
-      List<Map<String, Object>> druidEvents = new ArrayList<Map<String, Object>>();
+      List<Map<String, Object>> druidEvents = new ArrayList<>();
       druidEvents.add(data);
       final Future<Integer> numSentFuture = druidService.apply(druidEvents);
       try {
@@ -173,9 +200,141 @@ public class Druid implements IDatabase {
     return null;
   }
 
+  private JSONArray runQuery(URL url, String queryStr) {
+    JSONArray jsonArr = new JSONArray();
+    HttpResponse response = null;
+    try {
+      HttpPost postMethod = new HttpPost(url.toString());
+      StringEntity requestEntity = new StringEntity(queryStr, ContentType.APPLICATION_JSON);
+      postMethod.setEntity(requestEntity);
+      postMethod.addHeader("accept", "application/json");
+      int tries = retries + 1;
+      while (true)
+      {
+        tries--;
+        try
+        {
+          response = client.execute(postMethod);
+          break;
+        }
+        catch (IOException e)
+        {
+          if (tries < 1) {
+            System.err.print("ERROR: Connection to " + url.toString() + " failed " + retries + "times.");
+            LOGGER.error("Error: ", e);
+            if (response != null) {
+              EntityUtils.consumeQuietly(response.getEntity());
+            }
+            postMethod.releaseConnection();
+            return null;
+          }
+        }
+      }
+      if(response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_OK ||
+          response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_NO_CONTENT  ||
+          response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_MOVED_PERM){
+        if (response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_MOVED_PERM) {
+          System.err.println("WARNING: Query returned 301, that means 'API call has migrated or should be forwarded to another server'");
+        }
+        if (response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT){
+          // Maybe also not HTTP_MOVED_PERM? Can't Test it right now
+          BufferedReader bis = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+          StringBuilder builder = new StringBuilder();
+          String line;
+          while ((line = bis.readLine()) != null) {
+            builder.append(line);
+          }
+          jsonArr = new JSONArray(builder.toString());
+        }
+        EntityUtils.consumeQuietly(response.getEntity());
+        postMethod.releaseConnection();
+      }
+    } catch (Exception e) {
+      System.err.println("ERROR: Error while trying to query " + url.toString() + " for '" + queryStr + "'.");
+      LOGGER.error("Error: ", e);
+      if (response != null) {
+        EntityUtils.consumeQuietly(response.getEntity());
+      }
+      return null;
+    }
+    return jsonArr;
+  }
+
   @Override
   public Status rangeQuery(RangeQuery rangeQuery) {
-    return null;
+    List<DeviceSchema> deviceSchemas = rangeQuery.getDeviceSchema();
+    JSONArray jsonArr = null;
+    int line = 0;
+    int queryResultPointNum = 0;
+    long st;
+    long en;
+    try {
+      JSONObject query = new JSONObject();
+
+      query.put("queryType", "select");
+      query.put("dataSource", dataSource);
+
+      query.put("dimensions", new JSONArray());
+      query.put("metrics", new JSONArray());
+
+      JSONObject pagingSpec = new JSONObject();
+      pagingSpec.put("pagingIdentifiers", new JSONObject());
+      pagingSpec.put("threshold", 1);
+      query.put("pagingSpec", pagingSpec);
+        // WARNING: Using granularity = 1 ms for Druid is not advisable and will probably lead to problems (Search for killed Java processes due to memory).
+        // See http://druid.io/docs/latest/querying/granularities.html
+        // Also a Select Query needs no "none" = 1 ms granularity, see http://druid.io/docs/latest/development/select-query.html
+        // it is okay to return every existing value in one big bucket, as long as all values are delivered back
+//                query.put("granularity", "none");
+      query.put("granularity", "all");
+
+      JSONObject andFilter = new JSONObject();
+      andFilter.put("type", "and");
+      JSONArray andArray = new JSONArray();
+      for (DeviceSchema deviceSchema : deviceSchemas) {
+        //Map<String, String> map = new HashMap<>();
+        //map.put("device", deviceSchema.getDevice());
+
+
+        JSONObject orFilter = new JSONObject();
+        JSONArray orArray = new JSONArray();
+        orFilter.put("type", "or");
+        //for (String tagValue : (ArrayList<String>) entry.getValue()) {
+          JSONObject selectorFilter = new JSONObject();
+          selectorFilter.put("type", "selector");
+          selectorFilter.put("dimension", "device");
+          selectorFilter.put("value", deviceSchema.getDevice());
+          orArray.put(selectorFilter);
+        //}
+        orFilter.put("fields", orArray);
+        andArray.put(orFilter);
+      }
+      andFilter.put("fields", andArray);
+      query.put("filter", andFilter);
+
+      JSONArray dateArray = new JSONArray();
+      // calculate druid timestamps from workload timestamps
+      dateArray.put(String.format("%s/%s",
+          new DateTime(System.currentTimeMillis() + (rangeQuery.getStartTimestamp() - Constants.START_TIMESTAMP)),
+          new DateTime(System.currentTimeMillis() + (rangeQuery.getEndTimestamp() - Constants.START_TIMESTAMP))));
+      query.put("intervals", dateArray);
+      LOGGER.info("Input Query String: {}", query.toString());
+
+      st = System.nanoTime();
+      jsonArr = runQuery(urlQuery, query.toString());
+      en = System.nanoTime();
+//      for (int i = 0; i < jsonArr.length(); i++) {
+//        DateTime ts = new DateTime(jsonArr.getJSONObject(i).get("timestamp"));
+//        JSONObject result = (JSONObject) jsonArr.getJSONObject(i).get("result");
+//
+//      }
+
+      LOGGER.info("jsonArr: {}", jsonArr);
+      return new Status(true, en - st, queryResultPointNum);
+    } catch (Exception e) {
+      LOGGER.error("ERROR: Error while processing READ for metric: ", e);
+      return new Status(false, 0, queryResultPointNum, e, jsonArr.toString());
+    }
   }
 
   @Override
