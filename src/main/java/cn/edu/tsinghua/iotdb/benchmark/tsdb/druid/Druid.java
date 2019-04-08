@@ -63,7 +63,7 @@ public class Druid implements IDatabase {
 
   private static Config config = ConfigDescriptor.getInstance().getConfig();
   private static final Logger LOGGER = LoggerFactory.getLogger(Druid.class);
-  private String dataSource = "userMetric";
+  private String dataSource = "mypageviews";
   private Service<List<Map<String, Object>>, Integer> druidService;
   private Timestamper<Map<String, Object>> timestamper;
   private CuratorFramework curator;
@@ -75,7 +75,7 @@ public class Druid implements IDatabase {
   private final TimestampSpec timestampSpec = new TimestampSpec("timestamp", "auto");
   private List<String> dimensions = new ArrayList<String>();
   private QueryGranularity queryGranularity = QueryGranularity.NONE; // Millisecond Querys
-  private Granularity segmentGranularity = Granularity.MONTH;
+  private Granularity segmentGranularity = Granularity.HOUR;
   private Period windowPeriod = new Period().withDays(2);
   private int partitions = 1;
   private int replicants = 1;
@@ -87,57 +87,59 @@ public class Druid implements IDatabase {
   private String queryIP = "localhost"; // normally broker node,but historical/realtime is possible
   private String queryPort = "8090"; // normally broker node,but historical/realtime is possible
   private String queryURL = "/druid/v2/?pretty";
+  private boolean useTranquility = true;
 
   public Druid() {
-    dimensions.add("device");
-    dimensions.add("group");
-    for (int i = 0; i < config.SENSOR_NUMBER; i++) {
-      dimensions.add("s_" + i);
-    }
-
-    timestamper = new Timestamper<Map<String, Object>>() {
-      @Override
-      public DateTime timestamp(Map<String, Object> theMap) {
-        return new DateTime(theMap.get("timestamp"));
+    if(useTranquility) {
+      dimensions.add("device");
+      for (int i = 0; i < config.SENSOR_NUMBER; i++) {
+        dimensions.add("s_" + i);
       }
-    };
-    curator = CuratorFrameworkFactory
-        .builder()
-        .connectString(String.format("%s:%s", zookeeperIP, zookeeperPort))
-        .retryPolicy(new ExponentialBackoffRetry(1000, 20, 30000))
-        .build();
-    druidService = DruidBeams
-        .builder(timestamper)
-        .curator(curator)
-        .discoveryPath(discoveryPath)
-        .location(
-            DruidLocation.create(
-                indexService,
-                firehosePattern,
-                dataSource
-            )
-        )
-        .timestampSpec(timestampSpec)
-        .rollup(DruidRollup.create(
-            DruidDimensions.specific(dimensions), new ArrayList<AggregatorFactory>(),
-            queryGranularity))
-        .tuning(
-            ClusteredBeamTuning
-                .builder()
-                .segmentGranularity(this.segmentGranularity)
-                .windowPeriod(this.windowPeriod)
-                .partitions(this.replicants)
-                .replicants(this.partitions)
-                .warmingPeriod(this.warmingPeriod)
-                .build()
-        )
-        .buildJavaService();
-    RequestConfig requestConfig = RequestConfig.custom().build();
-    client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
-    try {
-      urlQuery = new URL("http", queryIP, Integer.valueOf(queryPort), queryURL );
-    } catch (MalformedURLException e) {
-      e.printStackTrace();
+
+      timestamper = new Timestamper<Map<String, Object>>() {
+        @Override
+        public DateTime timestamp(Map<String, Object> theMap) {
+          return new DateTime(theMap.get("timestamp"));
+        }
+      };
+      curator = CuratorFrameworkFactory
+          .builder()
+          .connectString(String.format("%s:%s", zookeeperIP, zookeeperPort))
+          .retryPolicy(new ExponentialBackoffRetry(1000, 20, 30000))
+          .build();
+      druidService = DruidBeams
+          .builder(timestamper)
+          .curator(curator)
+          .discoveryPath(discoveryPath)
+          .location(
+              DruidLocation.create(
+                  indexService,
+                  firehosePattern,
+                  dataSource
+              )
+          )
+          .timestampSpec(timestampSpec)
+          .rollup(DruidRollup.create(
+              DruidDimensions.specific(dimensions), new ArrayList<AggregatorFactory>(),
+              queryGranularity))
+          .tuning(
+              ClusteredBeamTuning
+                  .builder()
+                  .segmentGranularity(this.segmentGranularity)
+                  .windowPeriod(this.windowPeriod)
+                  .partitions(this.replicants)
+                  .replicants(this.partitions)
+                  .warmingPeriod(this.warmingPeriod)
+                  .build()
+          )
+          .buildJavaService();
+      RequestConfig requestConfig = RequestConfig.custom().build();
+      client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
+      try {
+        urlQuery = new URL("http", queryIP, Integer.valueOf(queryPort), queryURL);
+      } catch (MalformedURLException e) {
+        e.printStackTrace();
+      }
     }
   }
 

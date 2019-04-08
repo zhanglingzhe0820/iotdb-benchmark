@@ -1,0 +1,54 @@
+{
+  "dataSources": {
+    "mypageviews": {
+      "spec": {
+        "dataSchema": {
+          "dataSource": "mypageviews",
+          "parser": {
+            "type": "string",
+            "parseSpec": {
+              "timestampSpec": {
+                "format": "auto",
+                "column": "timestamp"
+              },
+              "dimensionsSpec": {
+                "dimensions": [
+                  "device",
+                  "s_0",
+                  "s_1",
+                  "s_2",
+                  "s_3"
+                ]
+              },
+              "format": "json"
+            }
+          },
+          "granularitySpec": {
+            "type": "uniform",
+            "segmentGranularity": "hour",
+            "queryGranularity": "none"
+          },
+          "metricsSpec": [
+          ]
+        },
+        "ioConfig" : {
+          "type" : "realtime"
+        },
+        "tuningConfig" : {
+          "type" : "realtime"
+        }
+      },
+      "properties": {
+        "task.partitions": "1",
+        "task.replicants": "1"
+      }
+    }
+  },
+  "properties": {
+    "zookeeper.connect": "localhost:2181",
+    "druid.discovery.curator.path": "/druid/discovery",
+    "druid.selectors.indexing.serviceName": "druid/overlord",
+    "http.port": "8200",
+    "http.threads": "8"
+  }
+}
