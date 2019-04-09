@@ -251,7 +251,7 @@ public class Druid implements IDatabase {
     queryMap.put("dataSource", "wikipedia");
     queryMap.put("resultFormat", "list");
     String interval;
-    if(config.STEP_SIZE >= 0) {
+    if(config.QUERY_CHOICE != 0) {
       interval = sdf.format(new Date(start)) + "/" + sdf.format(new Date(end));
     } else {
       long startDelta = start - Constants.START_TIMESTAMP;
