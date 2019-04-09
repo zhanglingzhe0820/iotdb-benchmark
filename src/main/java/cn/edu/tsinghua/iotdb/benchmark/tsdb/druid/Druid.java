@@ -17,16 +17,27 @@ import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.PreciseQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.RangeQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.ValueRangeQuery;
 import com.alibaba.fastjson.JSON;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +49,7 @@ public class Druid implements IDatabase {
   private Properties props = new Properties();
   private String Url = config.DB_URL;
   private String writeUrl = Url + "/v1/post/wikipedia";
+  private String queryUrl = Url + "/druid/v2?pretty";
   private int recordNum = 0;
   private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
   Producer<String, String> producer ;
@@ -154,7 +166,9 @@ public class Druid implements IDatabase {
 //    JSONArray jsonArr = new JSONArray();
 //    HttpResponse response = null;
 //    try {
+//
 //      HttpPost postMethod = new HttpPost(url.toString());
+//
 //      StringEntity requestEntity = new StringEntity(queryStr, ContentType.APPLICATION_JSON);
 //      postMethod.setEntity(requestEntity);
 //      postMethod.addHeader("accept", "application/json");
@@ -210,10 +224,63 @@ public class Druid implements IDatabase {
 //    return jsonArr;
 //  }
 
+  /**
+   * {
+   *    "queryType": "scan",
+   *    "dataSource": "wikipedia",
+   *    "resultFormat": "list",
+   *    "columns":[],
+   *    "intervals": [
+   *      "2013-01-01/2013-01-02"
+   *    ],
+   *    "batchSize":20480,
+   *    "limit":5
+   *  }
+   *
+   */
   @Override
   public Status rangeQuery(RangeQuery rangeQuery) {
+    long st;
+    long en;
+    int queryResultPointNum = 0;
+    long start = rangeQuery.getStartTimestamp();
+    long end = rangeQuery.getEndTimestamp();
+    Map<String, Object> queryMap = new HashMap<>();
+    queryMap.put("queryType", "scan");
+    queryMap.put("dataSource", "wikipedia");
+    queryMap.put("resultFormat", "list");
+    String interval = sdf.format(new Date(start)) + "/" + sdf.format(new Date(end));
+    queryMap.put("intervals", interval);
+    HttpPost postMethod = new HttpPost(queryUrl);
+    String queryStr = JSON.toJSONString(queryMap);
+    StringEntity requestEntity = new StringEntity(queryStr, ContentType.APPLICATION_JSON);
+    postMethod.setEntity(requestEntity);
+    postMethod.addHeader("accept", "application/json");
+    HttpResponse response = null;
+    try {
+      st = System.nanoTime();
+      response = client.execute(postMethod);
+      en = System.nanoTime();
+      LOGGER.info("response: {}", response);
+      if (response.getStatusLine().getStatusCode() != HttpURLConnection.HTTP_NO_CONTENT) {
+        BufferedReader bis = new BufferedReader(
+            new InputStreamReader(response.getEntity().getContent()));
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while ((line = bis.readLine()) != null) {
+          builder.append(line);
+        }
+        queryResultPointNum = new JSONArray(builder.toString()).length();
+      }
+      EntityUtils.consumeQuietly(response.getEntity());
+      postMethod.releaseConnection();
 
-    return null;
+      return new Status(true, en - st, queryResultPointNum);
+    } catch (IOException e) {
+      LOGGER.info("response: {}", response);
+      LOGGER.error("query fail because ", e);
+      return new Status(false, 0, queryResultPointNum, e, "error");
+    }
   }
 
   @Override
