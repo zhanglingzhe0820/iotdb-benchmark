@@ -40,6 +40,7 @@ public class Druid implements IDatabase {
   private String writeUrl = Url + "/v1/post/wikipedia";
   private int recordNum = 0;
   private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+  Producer<String, String> producer ;
 
   public Druid() {
     RequestConfig requestConfig = RequestConfig.custom().build();
@@ -52,6 +53,7 @@ public class Druid implements IDatabase {
     props.put("buffer.memory", 33554432);
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    producer = new KafkaProducer<>(props);
   }
 
   @Override
@@ -121,27 +123,25 @@ public class Druid implements IDatabase {
 //    long en = System.nanoTime();
 //    return new Status(true, en - st);
 
-    try(Producer<String, String> producer = new KafkaProducer<>(props)) {
-      long st = System.nanoTime();
-      for (Record record : batch.getRecords()) {
-        recordNum++;
-        String data = getInsertJsonString(recordNum);
-        String timeString = sdf.format(new Date(record.getTimestamp()));
-        Map map = (Map) JSON.parse(data);
-        map.put("time", timeString);
-        String s = JSON.toJSONString(map);
-        LOGGER.info("record: {}", s);
-        try {
-          producer.send(
-              new ProducerRecord<String, String>("wikipedia", Integer.toString(recordNum), s));
-        } catch (Exception e) {
-          LOGGER.error("insertion fail because ", e);
-          return new Status(false, 0, e, e.toString());
-        }
+    long st = System.nanoTime();
+    for (Record record : batch.getRecords()) {
+      recordNum++;
+      String data = getInsertJsonString(recordNum);
+      String timeString = sdf.format(new Date(record.getTimestamp()));
+      Map map = (Map) JSON.parse(data);
+      map.put("time", timeString);
+      String s = JSON.toJSONString(map);
+      LOGGER.info("record: {}", s);
+      try {
+        producer.send(
+            new ProducerRecord<String, String>("wikipedia", Integer.toString(recordNum), s));
+      } catch (Exception e) {
+        LOGGER.error("insertion fail because ", e);
+        return new Status(false, 0, e, e.toString());
       }
-      long en = System.nanoTime();
-      return new Status(true, en - st);
     }
+    long en = System.nanoTime();
+    return new Status(true, en - st);
 
   }
 
