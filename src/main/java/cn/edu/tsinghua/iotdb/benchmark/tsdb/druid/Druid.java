@@ -120,6 +120,7 @@ public class Druid implements IDatabase {
 //    LOGGER.info("response = {}", response);
 //    long en = System.nanoTime();
 //    return new Status(true, en - st);
+
     try(Producer<String, String> producer = new KafkaProducer<>(props)) {
       long st = System.nanoTime();
       for (Record record : batch.getRecords()) {
@@ -129,6 +130,7 @@ public class Druid implements IDatabase {
         Map map = (Map) JSON.parse(data);
         map.put("time", timeString);
         String s = JSON.toJSONString(map);
+        LOGGER.info("record: {}", s);
         try {
           producer.send(
               new ProducerRecord<String, String>("wikipedia", Integer.toString(recordNum), s));
