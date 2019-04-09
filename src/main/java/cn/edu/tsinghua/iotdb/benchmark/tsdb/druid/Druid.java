@@ -71,7 +71,7 @@ public class Druid implements IDatabase {
   public Status insertOneBatch(Batch batch) {
     int i = 0;
     String response;
-    String body = "";
+    //String body = "";
 
     for (Record record : batch.getRecords()) {
       String data = getInsertJsonString(i);
@@ -80,19 +80,21 @@ public class Druid implements IDatabase {
       map.put("time", time);
       String s = JSON.toJSONString(map);
       i++;
-      body += s + "\n";
+      String body = s;
+      LOGGER.info("body = {}", body);
+      long st = System.nanoTime();
+      try {
+        response = HttpRequest.sendPost(writeUrl, body);
+      } catch (IOException e) {
+        LOGGER.error("insert fail because ", e);
+        return new Status(false, 0, e, e.toString());
+      }
+      LOGGER.info("response = {}", response);
+      long en = System.nanoTime();
+      return new Status(true, en - st);
     }
-    LOGGER.info("body = {}", body);
-    long st = System.nanoTime();
-    try {
-      response = HttpRequest.sendPost(writeUrl, body);
-    } catch (IOException e) {
-      LOGGER.error("insert fail because ", e);
-      return new Status(false, 0, e, e.toString());
-    }
-    LOGGER.info("response = {}", response);
-    long en = System.nanoTime();
-    return new Status(true, en - st);
+
+    return null;
 
   }
 
