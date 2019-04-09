@@ -39,7 +39,7 @@ public class Druid implements IDatabase {
   private String Url = config.DB_URL;
   private String writeUrl = Url + "/v1/post/wikipedia";
   private int recordNum = 0;
-  private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+  private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
   Producer<String, String> producer ;
 
   public Druid() {
