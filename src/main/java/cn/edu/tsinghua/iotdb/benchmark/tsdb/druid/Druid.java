@@ -20,6 +20,13 @@ import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.ValueRangeQuery;
 import com.alibaba.fastjson.JSON;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +35,14 @@ public class Druid implements IDatabase {
 
   private static Config config = ConfigDescriptor.getInstance().getConfig();
   private static final Logger LOGGER = LoggerFactory.getLogger(Druid.class);
-
+  private CloseableHttpClient client;
 
   private String Url = config.DB_URL;
   private String writeUrl = Url + "/v1/post/wikipedia";
 
   public Druid() {
+    RequestConfig requestConfig = RequestConfig.custom().build();
+    client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
 
   }
 
@@ -70,8 +79,9 @@ public class Druid implements IDatabase {
   @Override
   public Status insertOneBatch(Batch batch) {
     int i = 0;
-    String response;
+    //String response;
     //String body = "";
+
 
     for (Record record : batch.getRecords()) {
       String data = getInsertJsonString(i);
@@ -83,11 +93,17 @@ public class Druid implements IDatabase {
       String body = s;
       LOGGER.info("body = {}", body);
       long st = System.nanoTime();
+      HttpResponse response = null;
+      HttpPost postMethod = new HttpPost(writeUrl);
+      StringEntity requestEntity = new StringEntity(body, ContentType.APPLICATION_JSON);
+      postMethod.setEntity(requestEntity);
+      postMethod.addHeader("accept", "application/json");
       try {
-        response = HttpRequest.sendPost(writeUrl, body);
+        response = client.execute(postMethod);
       } catch (IOException e) {
         LOGGER.error("insert fail because ", e);
-        return new Status(false, 0, e, e.toString());
+      } finally {
+        postMethod.releaseConnection();
       }
       LOGGER.info("response = {}", response);
       long en = System.nanoTime();
@@ -165,79 +181,7 @@ public class Druid implements IDatabase {
 
   @Override
   public Status rangeQuery(RangeQuery rangeQuery) {
-//    List<DeviceSchema> deviceSchemas = rangeQuery.getDeviceSchema();
-//    JSONArray jsonArr = null;
-//    int line = 0;
-//    int queryResultPointNum = 0;
-//    long st;
-//    long en;
-//    try {
-//      JSONObject query = new JSONObject();
-//
-//      query.put("queryType", "select");
-//      query.put("dataSource", dataSource);
-//
-//      query.put("dimensions", new JSONArray());
-//      query.put("metrics", new JSONArray());
-//
-//      JSONObject pagingSpec = new JSONObject();
-//      pagingSpec.put("pagingIdentifiers", new JSONObject());
-//      pagingSpec.put("threshold", 1);
-//      query.put("pagingSpec", pagingSpec);
-//        // WARNING: Using granularity = 1 ms for Druid is not advisable and will probably lead to problems (Search for killed Java processes due to memory).
-//        // See http://druid.io/docs/latest/querying/granularities.html
-//        // Also a Select Query needs no "none" = 1 ms granularity, see http://druid.io/docs/latest/development/select-query.html
-//        // it is okay to return every existing value in one big bucket, as long as all values are delivered back
-////                query.put("granularity", "none");
-//      query.put("granularity", "all");
-//
-//      JSONObject andFilter = new JSONObject();
-//      andFilter.put("type", "and");
-//      JSONArray andArray = new JSONArray();
-//      for (DeviceSchema deviceSchema : deviceSchemas) {
-//        //Map<String, String> map = new HashMap<>();
-//        //map.put("device", deviceSchema.getDevice());
-//
-//
-//        JSONObject orFilter = new JSONObject();
-//        JSONArray orArray = new JSONArray();
-//        orFilter.put("type", "or");
-//        //for (String tagValue : (ArrayList<String>) entry.getValue()) {
-//          JSONObject selectorFilter = new JSONObject();
-//          selectorFilter.put("type", "selector");
-//          selectorFilter.put("dimension", "device");
-//          selectorFilter.put("value", deviceSchema.getDevice());
-//          orArray.put(selectorFilter);
-//        //}
-//        orFilter.put("fields", orArray);
-//        andArray.put(orFilter);
-//      }
-//      andFilter.put("fields", andArray);
-//      query.put("filter", andFilter);
-//
-//      JSONArray dateArray = new JSONArray();
-//      // calculate druid timestamps from workload timestamps
-//      dateArray.put(String.format("%s/%s",
-//          new DateTime(System.currentTimeMillis() + (rangeQuery.getStartTimestamp() - Constants.START_TIMESTAMP)),
-//          new DateTime(System.currentTimeMillis() + (rangeQuery.getEndTimestamp() - Constants.START_TIMESTAMP))));
-//      query.put("intervals", dateArray);
-//      LOGGER.info("Input Query String: {}", query.toString());
-//
-//      st = System.nanoTime();
-//      jsonArr = runQuery(urlQuery, query.toString());
-//      en = System.nanoTime();
-////      for (int i = 0; i < jsonArr.length(); i++) {
-////        DateTime ts = new DateTime(jsonArr.getJSONObject(i).get("timestamp"));
-////        JSONObject result = (JSONObject) jsonArr.getJSONObject(i).get("result");
-////
-////      }
-//
-//      LOGGER.info("jsonArr: {}", jsonArr);
-//      return new Status(true, en - st, queryResultPointNum);
-//    } catch (Exception e) {
-//      LOGGER.error("ERROR: Error while processing READ for metric: ", e);
-//      return new Status(false, 0, queryResultPointNum, e, jsonArr.toString());
-//    }
+
     return null;
   }
 
