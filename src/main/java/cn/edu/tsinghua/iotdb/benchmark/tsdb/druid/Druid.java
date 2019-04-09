@@ -80,8 +80,9 @@ public class Druid implements IDatabase {
       map.put("time", time);
       String s = JSON.toJSONString(map);
       i++;
-      body += s;
+      body += s + "\n";
     }
+    LOGGER.info("body = {}", body);
     long st = System.nanoTime();
     try {
       response = HttpRequest.sendPost(writeUrl, body);
