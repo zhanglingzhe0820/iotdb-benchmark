@@ -1,54 +1,115 @@
+//{
+//  "type": "kafka",
+//  "dataSchema": {
+//    "dataSource": "benchmark",
+//    "parser": {
+//      "type": "string",
+//      "parseSpec": {
+//        "format": "json",
+//        "timestampSpec": {
+//          "column": "time",
+//          "format": "auto"
+//        },
+//        "dimensionsSpec": {
+//          "dimensions": [
+//            "device",
+//            {
+//              "name": "s_0",
+//              "type": "double"
+//            },
+//            {
+//              "name": "s_1",
+//              "type": "double"
+//            },
+//            {
+//              "name": "s_2",
+//              "type": "double"
+//            },
+//            {
+//              "name": "s_3",
+//              "type": "double"
+//            }
+//          ]
+//        }
+//      }
+//    },
+//    "metricsSpec": [],
+//    "granularitySpec": {
+//      "type": "uniform",
+//      "segmentGranularity": "DAY",
+//      "queryGranularity": "NONE",
+//      "rollup": false
+//    }
+//  },
+//  "tuningConfig": {
+//    "type": "kafka",
+//    "reportParseExceptions": false
+//  },
+//  "ioConfig": {
+//    "topic": "benchmark",
+//    "replicas": 1,
+//    "taskDuration": "PT10M",
+//    "completionTimeout": "PT20M",
+//    "consumerProperties": {
+//      "bootstrap.servers": "localhost:9092"
+//    }
+//  }
+//}
+
 {
-  "dataSources": {
-    "mypageviews": {
-      "spec": {
-        "dataSchema": {
-          "dataSource": "mypageviews",
-          "parser": {
-            "type": "string",
-            "parseSpec": {
-              "timestampSpec": {
-                "format": "auto",
-                "column": "timestamp"
-              },
-              "dimensionsSpec": {
-                "dimensions": [
-                  "device",
-                  "s_0",
-                  "s_1",
-                  "s_2",
-                  "s_3"
+  "dataSources" : {
+    "wikipedia" : {
+      "spec" : {
+        "dataSchema" : {
+          "dataSource" : "test",
+          "parser" : {
+            "type" : "string",
+            "parseSpec" : {
+              "format" : "json",
+              "dimensionsSpec" : {
+                "dimensions" : [
+                  { "name" : "device", "type" : "string" },
+                  { "name" : "s_0", "type" : "double" },
+                  { "name" : "s_1", "type" : "double" },
+                  { "name" : "s_2", "type" : "double" },
+                  { "name" : "s_3", "type" : "double" }
                 ]
               },
-              "format": "json"
+              "timestampSpec": {
+                "column": "time",
+                "format": "auto"
+              }
             }
           },
-          "granularitySpec": {
-            "type": "uniform",
-            "segmentGranularity": "hour",
-            "queryGranularity": "none"
-          },
-          "metricsSpec": [
-          ]
+          "metricsSpec" : [
+          ],
+          "granularitySpec" : {
+            "type" : "uniform",
+            "segmentGranularity" : "day",
+            "queryGranularity" : "none",
+            "rollup" : false
+          }
         },
         "ioConfig" : {
           "type" : "realtime"
         },
         "tuningConfig" : {
-          "type" : "realtime"
+          "type" : "realtime",
+          "intermediatePersistPeriod" : "PT10M",
+          "windowPeriod" : "P3650D"
         }
       },
-      "properties": {
-        "task.partitions": "1",
-        "task.replicants": "1"
+      "properties" : {
+        "task.partitions" : "1",
+        "task.replicants" : "1"
       }
     }
   },
-  "properties": {
-    "zookeeper.connect": "localhost:2181",
-    "druid.discovery.curator.path": "/druid/discovery",
-    "druid.selectors.indexing.serviceName": "druid/overlord",
-    "http.port": "8200",
-    "http.threads": "8"
+  "properties" : {
+    "zookeeper.connect" : "localhost",
+    "druid.discovery.curator.path" : "/druid/discovery",
+    "druid.selectors.indexing.serviceName" : "druid/overlord",
+    "http.port" : "8200",
+    "http.threads" : "9"
   }
 }
