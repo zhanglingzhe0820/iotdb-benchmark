@@ -6,7 +6,6 @@ import cn.edu.tsinghua.iotdb.benchmark.measurement.Measurement;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Status;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.IDatabase;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.TsdbException;
-import cn.edu.tsinghua.iotdb.benchmark.utils.HttpRequest;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Batch;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Record;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.AggRangeQuery;
@@ -18,16 +17,16 @@ import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.PreciseQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.RangeQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.ValueRangeQuery;
 import com.alibaba.fastjson.JSON;
-import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
-import org.apache.http.HttpResponse;
+import java.util.Properties;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.json.JSONObject;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,14 +35,23 @@ public class Druid implements IDatabase {
   private static Config config = ConfigDescriptor.getInstance().getConfig();
   private static final Logger LOGGER = LoggerFactory.getLogger(Druid.class);
   private CloseableHttpClient client;
-
+  private Properties props = new Properties();
   private String Url = config.DB_URL;
   private String writeUrl = Url + "/v1/post/wikipedia";
+  private int recordNum = 0;
+  private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
   public Druid() {
     RequestConfig requestConfig = RequestConfig.custom().build();
     client = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
-
+    props.put("bootstrap.servers", "localhost:9092");
+    props.put("acks", "all");
+    props.put("retries", 0);
+    props.put("batch.size", 16384);
+    props.put("linger.ms", 1);
+    props.put("buffer.memory", 33554432);
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
   }
 
   @Override
@@ -73,47 +81,65 @@ public class Druid implements IDatabase {
         "{\"time\":\"2015-09-12T00:47:05.474Z\",\"channel\":\"#en.wikipedia\",\"cityName\":\"Auburn\",\"comment\":\"/* Status of peremptory norms under international law */ fixed spelling of 'Wimbledon'\",\"countryIsoCode\":\"AU\",\"countryName\":\"Australia\",\"isAnonymous\":true,\"isMinor\":false,\"isNew\":false,\"isRobot\":false,\"isUnpatrolled\":false,\"metroCode\":null,\"namespace\":\"Main\",\"page\":\"Peremptory norm\",\"regionIsoCode\":\"NSW\",\"regionName\":\"New South Wales\",\"user\":\"60.225.66.142\",\"delta\":0,\"added\":0,\"deleted\":0}",
         "{\"time\":\"2015-09-12T00:47:08.770Z\",\"channel\":\"#vi.wikipedia\",\"cityName\":null,\"comment\":\"fix Lỗi CS1: ngày tháng\",\"countryIsoCode\":null,\"countryName\":null,\"isAnonymous\":false,\"isMinor\":true,\"isNew\":false,\"isRobot\":true,\"isUnpatrolled\":false,\"metroCode\":null,\"namespace\":\"Main\",\"page\":\"Apamea abruzzorum\",\"regionIsoCode\":null,\"regionName\":null,\"user\":\"Cheers!-bot\",\"delta\":18,\"added\":18,\"deleted\":0}"
     };
-    return data[i % 4];
+    return data[i % data.length];
   }
 
   @Override
   public Status insertOneBatch(Batch batch) {
-    int i = 0;
+    //int i = 0;
     //String response;
     //String body = "";
 
-    StringBuilder body = new StringBuilder();
-
-    for (Record record : batch.getRecords()) {
-      String data = getInsertJsonString(i);
-      long time = record.getTimestamp();
-      Map map = (Map) JSON.parse(data);
-      map.put("time", time);
-      String s = JSON.toJSONString(map);
-      i++;
-      body.append(s);
-
+//    StringBuilder body = new StringBuilder();
+//
+//    for (Record record : batch.getRecords()) {
+//      String data = getInsertJsonString(i);
+//      long time = record.getTimestamp();
+//      Map map = (Map) JSON.parse(data);
+//      map.put("time", time);
+//      String s = JSON.toJSONString(map);
+//      i++;
+//      body.append(s);
+//
+//    }
+//    LOGGER.info("body = {}", body);
+//    long st = System.nanoTime();
+//    HttpResponse response = null;
+//    HttpPost postMethod = new HttpPost(writeUrl);
+//    StringEntity requestEntity = new StringEntity(body.toString(), ContentType.APPLICATION_JSON);
+//    postMethod.setEntity(requestEntity);
+//    postMethod.addHeader("accept", "application/json");
+//    try {
+//      response = client.execute(postMethod);
+//    } catch (IOException e) {
+//      LOGGER.error("insert fail because ", e);
+//      return new Status(false, 0, e, e.toString());
+//    } finally {
+//      postMethod.releaseConnection();
+//    }
+//    LOGGER.info("response = {}", response);
+//    long en = System.nanoTime();
+//    return new Status(true, en - st);
+    try(Producer<String, String> producer = new KafkaProducer<>(props)) {
+      long st = System.nanoTime();
+      for (Record record : batch.getRecords()) {
+        recordNum++;
+        String data = getInsertJsonString(recordNum);
+        String timeString = sdf.format(new Date(record.getTimestamp()));
+        Map map = (Map) JSON.parse(data);
+        map.put("time", timeString);
+        String s = JSON.toJSONString(map);
+        try {
+          producer.send(
+              new ProducerRecord<String, String>("wikipedia", Integer.toString(recordNum), s));
+        } catch (Exception e) {
+          LOGGER.error("insertion fail because ", e);
+          return new Status(false, 0, e, e.toString());
+        }
+      }
+      long en = System.nanoTime();
+      return new Status(true, en - st);
     }
-    LOGGER.info("body = {}", body);
-    long st = System.nanoTime();
-    HttpResponse response = null;
-    HttpPost postMethod = new HttpPost(writeUrl);
-    StringEntity requestEntity = new StringEntity(body.toString(), ContentType.APPLICATION_JSON);
-    postMethod.setEntity(requestEntity);
-    postMethod.addHeader("accept", "application/json");
-    try {
-      response = client.execute(postMethod);
-    } catch (IOException e) {
-      LOGGER.error("insert fail because ", e);
-      return new Status(false, 0, e, e.toString());
-    } finally {
-      postMethod.releaseConnection();
-    }
-    LOGGER.info("response = {}", response);
-    long en = System.nanoTime();
-    return new Status(true, en - st);
-
-
 
   }
 
