@@ -270,7 +270,9 @@ public class Druid implements IDatabase {
         while ((line = bis.readLine()) != null) {
           builder.append(line);
         }
-        queryResultPointNum = new JSONArray(builder.toString()).length();
+        JSONArray jsonArray = new JSONArray(builder.toString());
+        queryResultPointNum = jsonArray.length();
+        LOGGER.info("jsonArray = {}", jsonArray);
       }
       EntityUtils.consumeQuietly(response.getEntity());
       postMethod.releaseConnection();
