@@ -2,6 +2,7 @@ package cn.edu.tsinghua.iotdb.benchmark.tsdb.druid;
 
 import cn.edu.tsinghua.iotdb.benchmark.conf.Config;
 import cn.edu.tsinghua.iotdb.benchmark.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iotdb.benchmark.conf.Constants;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Measurement;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Status;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.IDatabase;
@@ -249,7 +250,15 @@ public class Druid implements IDatabase {
     queryMap.put("queryType", "scan");
     queryMap.put("dataSource", "wikipedia");
     queryMap.put("resultFormat", "list");
-    String interval = sdf.format(new Date(start)) + "/" + sdf.format(new Date(end));
+    String interval;
+    if(config.STEP_SIZE >= 0) {
+      interval = sdf.format(new Date(start)) + "/" + sdf.format(new Date(end));
+    } else {
+      long startDelta = start - Constants.START_TIMESTAMP;
+      long endDelta = end - Constants.START_TIMESTAMP;
+      long lastTime = Constants.START_TIMESTAMP + config.LOOP * config.BATCH_SIZE * config.POINT_STEP;
+      interval = sdf.format(new Date(lastTime - endDelta)) + "/" + sdf.format(new Date(lastTime - startDelta));
+    }
     queryMap.put("intervals", interval);
     HttpPost postMethod = new HttpPost(queryUrl);
     String queryStr = JSON.toJSONString(queryMap);
