@@ -220,7 +220,7 @@ public class ConfigDescriptor {
             Integer.parseInt(split[split.length - 1].split(":")[0]) * config.DEVICE_NUMBER;
         if (config.DB_SWITCH.equals(Constants.DB_KAIROS)) {
           config.FIRST_DEVICE_INDEX =
-              Integer.parseInt(config.host.split(".")[config.host.split(".").length - 1])
+              Integer.parseInt(config.host.split("\\.")[config.host.split("\\.").length - 1])
                   * config.DEVICE_NUMBER;
         }
       } catch (IOException e) {
