@@ -131,7 +131,7 @@ public class KairosDB extends TSDB implements IDatebase {
             model.setTimestamp(currentTime);
             model.setValue(v);
             Map<String, String> tags = new HashMap<>();
-            tags.put("group", groupId);
+//            tags.put("group", groupId);
             tags.put("device", device);
             model.setTags(tags);
             models.addLast(model);
@@ -210,7 +210,7 @@ public class KairosDB extends TSDB implements IDatebase {
             groupList.add(getGroup(d));
         }
         List<String> uniqueGroupList = new ArrayList<>(new TreeSet<>(groupList));
-        tags.put("group", uniqueGroupList);
+//        tags.put("group", uniqueGroupList);
         tags.put("device", deviceList);
         subQuery.put("tags", tags);
 
@@ -342,7 +342,7 @@ public class KairosDB extends TSDB implements IDatebase {
                 groupList.add(getGroup(d));
             }
             List<String> uniqueGroupList = new ArrayList<>(new TreeSet<>(groupList));
-            tags.put("group", uniqueGroupList);
+//            tags.put("group", uniqueGroupList);
             tags.put("device", deviceList);
             subQuery.put("tags", tags);
             if (isAggregate && !config.QUERY_AGGREGATE_FUN.equals("")) {
@@ -587,7 +587,7 @@ public class KairosDB extends TSDB implements IDatebase {
             model.setTimestamp(currentTime);
             model.setValue(v);
             Map<String, String> tags = new HashMap<>();
-            tags.put("group", groupId);
+//            tags.put("group", groupId);
             tags.put("device", device);
             model.setTags(tags);
             models.addLast(model);
