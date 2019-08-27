@@ -435,11 +435,11 @@ public class Config {
       String sensorCode = "s_" + i;
       SENSOR_CODES.add(sensorCode);
     }
-    if (DB_SWITCH.equals(Constants.DB_TAOS)) {
-      for (int j = 0; j < SENSOR_CODES.size(); j++) {
-        SENSOR_CODES.set(j, SENSOR_CODES.get(j).replace("_", ""));
-      }
-    }
+//    if (DB_SWITCH.equals(Constants.DB_TAOS)) {
+//      for (int j = 0; j < SENSOR_CODES.size(); j++) {
+//        SENSOR_CODES.set(j, SENSOR_CODES.get(j).replace("_", ""));
+//      }
+//    }
     return SENSOR_CODES;
   }
 
@@ -451,11 +451,11 @@ public class Config {
       String deviceCode = "d_" + i;
       DEVICE_CODES.add(deviceCode);
     }
-    if (DB_SWITCH.equals(Constants.DB_TAOS)) {
-      for (int j = 0; j < DEVICE_CODES.size(); j++) {
-        DEVICE_CODES.set(j, DEVICE_CODES.get(j).replace("_", ""));
-      }
-    }
+//    if (DB_SWITCH.equals(Constants.DB_TAOS)) {
+//      for (int j = 0; j < DEVICE_CODES.size(); j++) {
+//        DEVICE_CODES.set(j, DEVICE_CODES.get(j).replace("_", ""));
+//      }
+//    }
     return DEVICE_CODES;
   }
 

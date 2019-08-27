@@ -219,7 +219,7 @@ public class TaosDB implements IDatebase {
 
   public void createSQLStatment(int batch, int index, String device, Statement statement)
       throws SQLException {
-    //由于taosDB的数据库SQL不能过长，一次插入1000行
+    //由于taosDB的数据库SQL不能过长，一次插入1000列
     int column_num = 1000;
     int column_loop = config.SENSOR_CODES.size() / column_num;
     for (int i = 0; i <= column_loop; i++) {
