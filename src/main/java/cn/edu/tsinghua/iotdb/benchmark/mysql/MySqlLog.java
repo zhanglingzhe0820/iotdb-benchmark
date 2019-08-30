@@ -361,9 +361,17 @@ public class MySqlLog {
                     + "'", "'" + v + "'");
             stat.executeUpdate(sql);
         } catch (SQLException e) {
-
-            LOGGER.error("{}将结果信息写入mysql失败，because ：{}", sql, e.getMessage());
-            e.printStackTrace();
+            try {
+                Class.forName(Constants.MYSQL_DRIVENAME);
+                mysqlConnection = DriverManager.getConnection(config.MYSQL_URL);
+                stat = mysqlConnection.createStatement();
+                sql = String.format(SAVE_RESULT, "'" + projectID + "'", "'" + k
+                    + "'", "'" + v + "'");
+                stat.executeUpdate(sql);
+            } catch (Exception e1) {
+                LOGGER.error("{}将结果信息写入mysql失败，because ：{}", sql, e.getMessage());
+                e.printStackTrace();
+            }
         } finally {
             if (stat != null) {
                 try {
