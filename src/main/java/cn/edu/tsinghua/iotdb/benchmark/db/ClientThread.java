@@ -57,11 +57,11 @@ public class ClientThread implements Runnable{
 		if (config.DB_SWITCH.equals("IoTDB") && !config.USE_PREPARE_STATEMENT
 				&& config.USE_SESSION) {
 			session = new Session(config.host, config.port, Constants.USER, Constants.PASSWD);
-		}
-		try {
-			session.open();
-		} catch (IoTDBSessionException e) {
-			e.printStackTrace();
+			try {
+				session.open();
+			} catch (IoTDBSessionException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
