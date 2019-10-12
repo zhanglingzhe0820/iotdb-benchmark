@@ -204,8 +204,9 @@ public class ClientThread implements Runnable {
           loopRate = pointsOneLoop / (loopSecond + delayTime * 0.000000001d);
         }
 
+        /*
         LOGGER.info("{} LOOP ,{}, INSERT RATE,{},points/s,LOOP DELTA TIME,{},second",
-            Thread.currentThread().getName(), i, loopRate, loopSecond);
+            Thread.currentThread().getName(), i, loopRate, loopSecond);*/
         mySql.saveInsertProcessOfLoop(i, loopRate);
       }
     }
