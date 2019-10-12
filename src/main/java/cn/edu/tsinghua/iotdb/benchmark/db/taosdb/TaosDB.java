@@ -430,8 +430,11 @@ public class TaosDB implements IDatebase {
                 endSensor = startSensor + COLUMN;
             }
             for (int j = startSensor; j < endSensor; j++) {
+                /*
                 FunctionParam param = config.SENSOR_FUNCTION.get(config.SENSOR_CODES.get(j));
                 Number value = Function.getValueByFuntionidAndParam(param, currentTime);
+                */
+                Number value = currentTime;
                 float v = Float.parseFloat(String.format("%.2f", value.floatValue()));
                 insertSql.append(v).append(",");
             }
