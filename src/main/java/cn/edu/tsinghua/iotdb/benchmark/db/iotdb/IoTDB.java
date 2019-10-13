@@ -435,9 +435,9 @@ public class IoTDB implements IDatebase {
         }
         latencies.add(costTime);
 
-        mySql.saveInsertProcess(loopIndex, (costTime) / unitTransfer,
-            totalTime.get() / unitTransfer, errorAft - errorPre,
-            config.REMARK);
+//        mySql.saveInsertProcess(loopIndex, (costTime) / unitTransfer,
+//            totalTime.get() / unitTransfer, errorAft - errorPre,
+//            config.REMARK);
     }
 
     @Override
