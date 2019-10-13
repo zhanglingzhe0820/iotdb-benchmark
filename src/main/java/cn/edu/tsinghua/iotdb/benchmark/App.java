@@ -820,6 +820,7 @@ public class App {
             CountDownLatch downLatch = new CountDownLatch(config.CLIENT_NUMBER);
             ArrayList<Long> totalTimes = new ArrayList<>();
             ExecutorService executorService = Executors.newFixedThreadPool(config.CLIENT_NUMBER);
+            long insStartTime = System.nanoTime();
             for (int i = 0; i < config.CLIENT_NUMBER; i++) {
                 executorService.submit(new ClientThread(idbFactory.buildDB(mysql.getLabID()), i, downLatch, totalTimes,
                         totalInsertErrorNums, latenciesOfClients));
@@ -830,13 +831,16 @@ public class App {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            long insEndTime = System.nanoTime();
+            float totalTime = (insEndTime - insStartTime) / 1000000000.0f;
+            /*
             long totalTime = 0;
             for (long c : totalTimes) {
                 if (c > totalTime) {
                     totalTime = c;
                 }
             }
-
+            */
             ArrayList<Long> allLatencies = new ArrayList<>();
             int totalOps;
             for (ArrayList<Long> oneClientLatencies : latenciesOfClients) {

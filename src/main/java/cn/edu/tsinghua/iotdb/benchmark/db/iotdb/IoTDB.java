@@ -404,8 +404,11 @@ public class IoTDB implements IDatebase {
             timestamps[row] = currentTime;
             int columnNum = 0;
             for (String sensor : config.SENSOR_CODES) {
+                Number value = currentTime;
+                /*
                 FunctionParam param = config.SENSOR_FUNCTION.get(sensor);
                 Number value = Function.getValueByFuntionidAndParam(param, currentTime);
+                */
                 double v = Double.parseDouble(String.format("%.2f", value.doubleValue()));
                 double[] sensors = (double[]) values[columnNum];
                 sensors[row] = v;
