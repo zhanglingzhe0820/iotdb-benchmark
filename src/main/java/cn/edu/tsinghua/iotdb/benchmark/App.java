@@ -831,7 +831,7 @@ public class App {
                 e.printStackTrace();
             }
             long insEndTime = System.nanoTime();
-            float totalTime = (insEndTime - insStartTime) / 1000000000.0f;
+            float totalTime = insEndTime - insStartTime;
             /*
             long totalTime = 0;
             for (long c : totalTimes) {
