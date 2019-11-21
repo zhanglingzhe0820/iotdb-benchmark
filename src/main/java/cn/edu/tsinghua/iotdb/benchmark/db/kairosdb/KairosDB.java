@@ -334,12 +334,12 @@ public class KairosDB extends TSDB implements IDatebase {
             List<String> deviceList = new ArrayList<>();
             List<String> groupList = new ArrayList<>();
             for (int d : devices) {
-                deviceList.add("d_" + d);
+                deviceList.add(config.DEVICE_CODES.get(d));
             }
-            for (String d : deviceList) {
-                groupList.add(getGroup(d));
-            }
-            List<String> uniqueGroupList = new ArrayList<>(new TreeSet<>(groupList));
+//            for (String d : deviceList) {
+//                groupList.add(getGroup(d));
+//            }
+//            List<String> uniqueGroupList = new ArrayList<>(new TreeSet<>(groupList));
 //            tags.put("group", uniqueGroupList);
             tags.put("device", deviceList);
             subQuery.put("tags", tags);
