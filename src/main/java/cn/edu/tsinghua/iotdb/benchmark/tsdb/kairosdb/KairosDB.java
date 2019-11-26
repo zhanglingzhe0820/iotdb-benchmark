@@ -3,10 +3,8 @@ package cn.edu.tsinghua.iotdb.benchmark.tsdb.kairosdb;
 import cn.edu.tsinghua.iotdb.benchmark.conf.Config;
 import cn.edu.tsinghua.iotdb.benchmark.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Status;
-import cn.edu.tsinghua.iotdb.benchmark.model.KairosDataModel;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.IDatabase;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.TsdbException;
-import cn.edu.tsinghua.iotdb.benchmark.utils.HttpRequest;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Batch;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Record;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.AggRangeQuery;
@@ -18,18 +16,20 @@ import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.PreciseQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.RangeQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.query.impl.ValueRangeQuery;
 import cn.edu.tsinghua.iotdb.benchmark.workload.schema.DeviceSchema;
-import com.alibaba.fastjson.JSON;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import javafx.util.Pair;
 import org.kairosdb.client.HttpClient;
 import org.kairosdb.client.builder.Aggregator;
 import org.kairosdb.client.builder.AggregatorFactory;
 import org.kairosdb.client.builder.AggregatorFactory.FilterOperation;
+import org.kairosdb.client.builder.Metric;
+import org.kairosdb.client.builder.MetricBuilder;
 import org.kairosdb.client.builder.QueryBuilder;
 import org.kairosdb.client.builder.TimeUnit;
 import org.kairosdb.client.builder.aggregator.SamplingAggregator;
@@ -42,17 +42,14 @@ import org.slf4j.LoggerFactory;
 public class KairosDB implements IDatabase {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KairosDB.class);
-  private String writeUrl;
   private HttpClient client;
   private Config config;
 
-  private static final String GROUP_STR = "group";
   private static final String DEVICE_STR = "device";
+  private static final String SENSOR_STR = "s_";
 
   public KairosDB() {
     config = ConfigDescriptor.getInstance().getConfig();
-    writeUrl = config.DB_URL + "/api/v1/datapoints";
-
   }
 
   @Override
@@ -71,7 +68,7 @@ public class KairosDB implements IDatabase {
     try {
       for (String metric : client.getMetricNames()) {
         // skip kairosdb internal info metrics
-        if(metric.contains("kairosdb.")){
+        if (metric.contains("kairosdb.")) {
           continue;
         }
         client.deleteMetric(metric);
@@ -98,47 +95,33 @@ public class KairosDB implements IDatabase {
     //no need for KairosDB
   }
 
-
-  private LinkedList<KairosDataModel> createDataModel(DeviceSchema deviceSchema, long timestamp,
-      List<String> recordValues) {
-    LinkedList<KairosDataModel> models = new LinkedList<>();
-    String groupId = deviceSchema.getGroup();
-    int i = 0;
-    for (String sensor : deviceSchema.getSensors()) {
-      KairosDataModel model = new KairosDataModel();
-      model.setName(sensor);
-      // KairosDB do not support float as data type
-      if (config.DATA_TYPE.equalsIgnoreCase("FLOAT")) {
-        model.setType("double");
-      } else {
-        model.setType(config.DATA_TYPE.toLowerCase());
-      }
-      model.setTimestamp(timestamp);
-      model.setValue(recordValues.get(i));
-      Map<String, String> tags = new HashMap<>();
-      tags.put(GROUP_STR, groupId);
-      tags.put(DEVICE_STR, deviceSchema.getDevice());
-      model.setTags(tags);
-      models.addLast(model);
-      i++;
-    }
-    return models;
-  }
-
   @Override
   public Status insertOneBatch(Batch batch) {
-    LinkedList<KairosDataModel> models = new LinkedList<>();
-    for (Record record : batch.getRecords()) {
-      models.addAll(createDataModel(batch.getDeviceSchema(), record.getTimestamp(),
-          record.getRecordDataValue()));
+    Map<String, List<Pair>> convertMap = new HashMap<>();
+    for(String sensor: config.SENSOR_CODES) {
+      convertMap.put(sensor, new ArrayList<>());
     }
-    String body = JSON.toJSONString(models);
-    LOGGER.debug("body: {}", body);
+    for (Record record : batch.getRecords()) {
+      int i = 0;
+      for (String value : record.getRecordDataValue()) {
+        convertMap.get(SENSOR_STR + i).add(new Pair(record.getTimestamp(), value));
+        i++;
+      }
+    }
+
     try {
-
-      String response = HttpRequest.sendPost(writeUrl, body);
-
-      LOGGER.debug("response: {}", response);
+      MetricBuilder builder = MetricBuilder.getInstance();
+      for (Map.Entry<String, List<Pair>> entry : convertMap.entrySet()) {
+        Metric metric = builder.addMetric(entry.getKey())
+            .addTag(DEVICE_STR, batch.getDeviceSchema().getDevice());
+        for(Pair pair: entry.getValue()) {
+          metric.addDataPoint((long) pair.getKey(), pair.getValue());
+        }
+      }
+      if (!config.IS_QUIET_MODE) {
+        LOGGER.info("[KairosDB] insert json builder: {}", builder.build());
+      }
+      client.pushMetrics(builder);
       return new Status(true);
     } catch (Exception e) {
       return new Status(false, 0, e, e.toString());
@@ -258,8 +241,7 @@ public class KairosDB implements IDatabase {
     for (DeviceSchema deviceSchema : deviceSchemaList) {
       for (String sensor : deviceSchema.getSensors()) {
         builder.addMetric(sensor)
-            .addTag(DEVICE_STR, deviceSchema.getDevice())
-            .addTag(GROUP_STR, deviceSchema.getGroup());
+            .addTag(DEVICE_STR, deviceSchema.getDevice());
       }
     }
     return builder;
