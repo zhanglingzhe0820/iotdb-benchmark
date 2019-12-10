@@ -16,6 +16,8 @@ import cn.edu.tsinghua.iotdb.benchmark.utils.HttpRequest;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import java.sql.Connection;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +29,8 @@ import java.util.*;
 public class KairosDB extends TSDB implements IDatebase {
     private static final Logger LOGGER = LoggerFactory.getLogger(KairosDB.class);
     private String Url;
-    private String queryUrl;
+    private List<String> queryUrls = new ArrayList<>();
+    private AtomicInteger queryIndex = new AtomicInteger();
     private String writeUrl;
     private String deleteUrl;
     private String dataType = "double";
@@ -55,7 +58,9 @@ public class KairosDB extends TSDB implements IDatebase {
         probTool = new ProbTool();
         timestampRandom = new Random(2 + config.QUERY_SEED);
         Url = config.DB_URL;
-        queryUrl = Url + "/api/v1/datapoints/query";
+        for (String queryUrl : config.DB_QUERY_URL_LIST) {
+          queryUrls.add(queryUrl + "/api/v1/datapoints/query");
+        }
         writeUrl = Url + "/api/v1/datapoints";
         deleteUrl = Url + "/api/v1/metric/%s";
         mySql.initMysql(labID);
@@ -92,6 +97,10 @@ public class KairosDB extends TSDB implements IDatebase {
     @Override
     public long getLabID() {
         return labID;
+    }
+
+    private String getQueryUrl() {
+        return queryUrls.get(queryIndex.incrementAndGet() % queryUrls.size());
     }
 
     @Override
@@ -243,7 +252,7 @@ public class KairosDB extends TSDB implements IDatebase {
         LOGGER.debug("JSON in getTotalTimeInterval(): " + sql);
         String str = null;
         try {
-            str = HttpRequest.sendPost(queryUrl, sql);
+            str = HttpRequest.sendPost(getQueryUrl(), sql);
         } catch (IOException e) {
             LOGGER.error("Failed to get the last time value.");
             e.printStackTrace();
@@ -473,7 +482,7 @@ public class KairosDB extends TSDB implements IDatebase {
             LOGGER.info("{} execute {} loop,提交的JSON：{}", Thread.currentThread().getName(), index, sql);
             String str ;
             startTimeStamp = System.nanoTime();
-            str = HttpRequest.sendPost(queryUrl, sql);
+            str = HttpRequest.sendPost(getQueryUrl(), sql);
             endTimeStamp = System.nanoTime();
             latency = endTimeStamp - startTimeStamp;
             latencies.add(latency);

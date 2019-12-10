@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.iotdb.jdbc.IoTDBPreparedInsertionStatement;
 import org.apache.iotdb.session.IoTDBSessionException;
 import org.apache.iotdb.session.Session;
@@ -51,9 +52,12 @@ import org.slf4j.LoggerFactory;
 public class IoTDB implements IDatebase {
     private static final Logger LOGGER = LoggerFactory.getLogger(IoTDB.class);
     //private static final String createSeriesSQL = "CREATE TIMESERIES %s WITH DATATYPE=%s,ENCODING=%s";
+    private static final String JDBC_URL = "jdbc:iotdb://%s/";
     private static final String createSeriesSQLWithCompressor = "CREATE TIMESERIES %s WITH DATATYPE=%s,ENCODING=%s,COMPRESSOR=%s";
     private static final String setStorageLevelSQL = "SET STORAGE GROUP TO %s";
     private Connection connection;
+    private List<Connection> queryConnections = new ArrayList<>();
+    private AtomicInteger queryIndex = new AtomicInteger();
     private Session session;
     private static Config config;
     private List<Point> points;
@@ -79,6 +83,12 @@ public class IoTDB implements IDatebase {
         probTool = new ProbTool();
         connection = DriverManager.getConnection(String.format(Constants.URL, config.host, config.port), Constants.USER,
                 Constants.PASSWD);
+        for (String query_url : config.IoTDB_QUERY_URL_LIST) {
+            Connection query_connection = DriverManager
+                .getConnection(String.format(JDBC_URL, query_url), Constants.USER,
+                    Constants.PASSWD);
+            queryConnections.add(query_connection);
+        }
         session = new Session(config.host, config.port, Constants.USER, Constants.PASSWD);
         mySql.initMysql(labID);
     }
@@ -157,6 +167,10 @@ public class IoTDB implements IDatebase {
     @Override
     public long getLabID() {
         return this.labID;
+    }
+
+    private Connection getQueryConnection() {
+        return queryConnections.get(queryIndex.incrementAndGet() % queryConnections.size());
     }
 
     private void initSchema() {
@@ -742,7 +756,8 @@ public class IoTDB implements IDatebase {
         String sql = "";
         long startTimeStamp = 0, endTimeStamp = 0, latency = 0;
         try {
-            statement = connection.createStatement();
+            Connection queryConnection = getQueryConnection();
+            statement = queryConnection.createStatement();
             List<String> sensorList = new ArrayList<String>();
 
             switch (config.QUERY_CHOICE) {

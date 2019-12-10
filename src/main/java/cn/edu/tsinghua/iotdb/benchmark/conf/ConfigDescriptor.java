@@ -55,6 +55,8 @@ public class ConfigDescriptor {
 				properties.load(inputStream);
 				config.host = properties.getProperty("HOST", "no host");
 				config.port = properties.getProperty("PORT", "no port");
+        String iotdb_query_url_list = properties.getProperty("IoTDB_QUERY_URL_LIST", "127.0.0.1:6667");
+        Collections.addAll(config.IoTDB_QUERY_URL_LIST, iotdb_query_url_list.split(","));
 				config.DEVICE_NUMBER = Integer.parseInt(properties.getProperty("DEVICE_NUMBER", config.DEVICE_NUMBER+""));
 				config.SENSOR_NUMBER = Integer.parseInt(properties.getProperty("SENSOR_NUMBER", config.SENSOR_NUMBER+""));
 
@@ -86,7 +88,8 @@ public class ConfigDescriptor {
 				config.GROUP_NUMBER = Integer.parseInt(properties.getProperty("GROUP_NUMBER", config.GROUP_NUMBER+""));
 
 				config.DB_URL = properties.getProperty("DB_URL", "localhost");
-				config.DB_NAME = properties.getProperty("DB_NAME", "test");
+        String db_query_url_list = properties.getProperty("DB_QUERY_URL_LIST", "127.0.0.1:6667");
+        Collections.addAll(config.DB_QUERY_URL_LIST, db_query_url_list.split(","));
 				config.DB_SWITCH = properties.getProperty("DB_SWITCH", Constants.DB_IOT);
 
 				config.QUERY_CHOICE = Integer.parseInt(properties.getProperty("QUERY_CHOICE", config.QUERY_CHOICE+""));

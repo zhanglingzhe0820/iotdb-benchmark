@@ -29,6 +29,8 @@ public class Config {
 	public String host="127.0.0.1";
 	public String port="6667";
 
+	public List<String> IoTDB_QUERY_URL_LIST;
+
 	/** 设备数量 */
 	public int DEVICE_NUMBER = 2;
 	/** 设备和客户端是否绑定 */
@@ -227,8 +229,8 @@ public class Config {
 	// DB参数
 	// 服务器URL
 	public String DB_URL = "http://localhost:8086";
-	// 使用的数据库名
-	public String DB_NAME = "test";
+
+	public List<String> DB_QUERY_URL_LIST;
 
 	// 使用的数据库
 	public String DB_SWITCH = "IoTDB";
