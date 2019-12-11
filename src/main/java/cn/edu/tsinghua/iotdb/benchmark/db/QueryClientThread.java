@@ -80,10 +80,19 @@ public class QueryClientThread implements Runnable {
 			clientDevicesIndex.add( m );
 		}
 		while (i < config.LOOP) {
-			Collections.shuffle(clientDevicesIndex, deviceRandom);
-			for (int m = 0; m < config.QUERY_DEVICE_NUM; m++){
-				queryDevicesIndex.add(clientDevicesIndex.get(m));
-			}
+		  if (config.QUERY_ADJACENT_SG) {
+				int randomIndex = deviceRandom.nextInt(config.GROUP_NUMBER);
+				for (int m = 0; m < config.QUERY_DEVICE_NUM; m++) {
+					queryDevicesIndex
+							.add(config.DEVICE_CODES
+									.indexOf(config.QUERY_DEVICE_CODES.get((randomIndex + m) % config.GROUP_NUMBER)));
+				}
+      } else {
+        Collections.shuffle(clientDevicesIndex, deviceRandom);
+        for (int m = 0; m < config.QUERY_DEVICE_NUM; m++) {
+          queryDevicesIndex.add(clientDevicesIndex.get(m));
+        }
+      }
 			database.executeOneQuery(queryDevicesIndex,
 					i, startTimeInterval * i + Constants.START_TIMESTAMP, this, errorCount, latencies);
 			i++;

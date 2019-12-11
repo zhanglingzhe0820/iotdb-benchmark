@@ -29,7 +29,7 @@ public class Config {
 	public String host="127.0.0.1";
 	public String port="6667";
 
-	public List<String> IoTDB_QUERY_URL_LIST;
+	public List<String> IoTDB_QUERY_URL_LIST = new ArrayList<>();
 
 	/** 设备数量 */
 	public int DEVICE_NUMBER = 2;
@@ -169,6 +169,8 @@ public class Config {
 	public List<FunctionParam> CONSTANT_LIST = new ArrayList<FunctionParam>();
 	/** 设备编号 */
 	public List<String> DEVICE_CODES = new ArrayList<String>();
+	/** 根据存储组排序的设备编号 */
+	public List<String> QUERY_DEVICE_CODES = new ArrayList<>();
 	/** 传感器编号 */
 	public List<String> SENSOR_CODES = new ArrayList<String>();
 	/** 设备_传感器 时间偏移量 */
@@ -201,6 +203,7 @@ public class Config {
 	public int QUERY_SENSOR_NUM = 1;
 	public int QUERY_DEVICE_NUM = 1;
 	public int QUERY_CHOICE = 1;
+	public boolean QUERY_ADJACENT_SG = true;
 	public String QUERY_AGGREGATE_FUN = "";
 	public long QUERY_INTERVAL = DEVICE_NUMBER * POINT_STEP;
 	public double QUERY_LOWER_LIMIT = 0;
@@ -229,8 +232,10 @@ public class Config {
 	// DB参数
 	// 服务器URL
 	public String DB_URL = "http://localhost:8086";
+	// 使用的数据库名
+	public String DB_NAME = "test";
 
-	public List<String> DB_QUERY_URL_LIST;
+	public List<String> DB_QUERY_URL_LIST = new ArrayList<>();
 
 	// 使用的数据库
 	public String DB_SWITCH = "IoTDB";
@@ -376,6 +381,22 @@ public class Config {
 			DEVICE_CODES.add(deviceCode);
 		}
 		return DEVICE_CODES;
+	}
+
+	/**
+	 * 获取设备编号，根据存储组进行排列
+	 */
+	public void initQueryDevices() {
+		List<List<String>> queryDevicesList = new ArrayList<>(GROUP_NUMBER);
+		for (int i = 0; i < GROUP_NUMBER; i++) {
+			queryDevicesList.add(new ArrayList<>());
+		}
+		for (String device : DEVICE_CODES) {
+			queryDevicesList.get(Math.abs(device.hashCode()) % GROUP_NUMBER).add(device);
+		}
+		for (List<String> queryDevices : queryDevicesList) {
+			QUERY_DEVICE_CODES.addAll(queryDevices);
+		}
 	}
 
 	public String getSensorCodeByRandom() {

@@ -27,6 +27,7 @@ public class ConfigDescriptor {
 		loadProps();
 		config.initInnerFucntion();
 		config.initDeviceCodes();
+		config.initQueryDevices();
 		config.initSensorCodes();
 		config.initSensorFunction();
 		config.initRealDataSetSchema();
@@ -88,11 +89,13 @@ public class ConfigDescriptor {
 				config.GROUP_NUMBER = Integer.parseInt(properties.getProperty("GROUP_NUMBER", config.GROUP_NUMBER+""));
 
 				config.DB_URL = properties.getProperty("DB_URL", "localhost");
+				config.DB_NAME = properties.getProperty("DB_NAME", "test");
         String db_query_url_list = properties.getProperty("DB_QUERY_URL_LIST", "127.0.0.1:6667");
         Collections.addAll(config.DB_QUERY_URL_LIST, db_query_url_list.split(","));
 				config.DB_SWITCH = properties.getProperty("DB_SWITCH", Constants.DB_IOT);
 
 				config.QUERY_CHOICE = Integer.parseInt(properties.getProperty("QUERY_CHOICE", config.QUERY_CHOICE+""));
+				config.QUERY_ADJACENT_SG = Boolean.parseBoolean(properties.getProperty("QUERY_ADJACENT_SG", "true"));
 				config.QUERY_SENSOR_NUM  = Integer.parseInt(properties.getProperty("QUERY_SENSOR_NUM", config.QUERY_SENSOR_NUM+""));
 				config.QUERY_DEVICE_NUM  = Integer.parseInt(properties.getProperty("QUERY_DEVICE_NUM", config.QUERY_DEVICE_NUM+""));
 				config.QUERY_AGGREGATE_FUN = properties.getProperty("QUERY_AGGREGATE_FUN", config.QUERY_AGGREGATE_FUN);
