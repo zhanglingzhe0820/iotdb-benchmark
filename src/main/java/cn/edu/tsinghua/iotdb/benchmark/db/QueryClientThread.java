@@ -81,11 +81,11 @@ public class QueryClientThread implements Runnable {
 		}
 		while (i < config.LOOP) {
 		  if (config.QUERY_ADJACENT_SG) {
-				int randomIndex = deviceRandom.nextInt(config.GROUP_NUMBER);
+				int randomIndex = deviceRandom.nextInt(config.DEVICE_NUMBER);
 				for (int m = 0; m < config.QUERY_DEVICE_NUM; m++) {
 					queryDevicesIndex
 							.add(config.DEVICE_CODES
-									.indexOf(config.QUERY_DEVICE_CODES.get((randomIndex + m) % config.GROUP_NUMBER)));
+									.indexOf(config.QUERY_DEVICE_CODES.get((randomIndex + m) % config.DEVICE_NUMBER)));
 				}
       } else {
         Collections.shuffle(clientDevicesIndex, deviceRandom);
