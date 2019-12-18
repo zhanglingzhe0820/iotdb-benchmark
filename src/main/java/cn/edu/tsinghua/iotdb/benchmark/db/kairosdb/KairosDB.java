@@ -506,6 +506,7 @@ public class KairosDB extends TSDB implements IDatebase {
     private int getOneQueryPointNum(String str) {
         int pointNum = 0;
 
+        LOGGER.info("get ikr json string");
         JSONArray jsonArrayQueries = JSON.parseObject(str).getJSONArray("queries");
         for (int i = 0; i < jsonArrayQueries.size(); i++) {
             JSONObject json = jsonArrayQueries.getJSONObject(i);
@@ -515,7 +516,7 @@ public class KairosDB extends TSDB implements IDatebase {
                 pointNum += resultJSON.getJSONArray("values").size();
             }
         }
-
+        LOGGER.info("complete get query point");
         return pointNum;
     }
 
