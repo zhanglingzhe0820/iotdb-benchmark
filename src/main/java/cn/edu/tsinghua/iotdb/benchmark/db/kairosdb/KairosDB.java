@@ -510,11 +510,13 @@ public class KairosDB extends TSDB implements IDatebase {
         JSONArray jsonArrayQueries = JSON.parseObject(str).getJSONArray("queries");
         for (int i = 0; i < jsonArrayQueries.size(); i++) {
             JSONObject json = jsonArrayQueries.getJSONObject(i);
-            JSONArray results = json.getJSONArray("results");
-            for (int j = 0; j < results.size(); j++) {
-                JSONObject resultJSON = results.getJSONObject(j);
-                pointNum += resultJSON.getJSONArray("values").size();
-            }
+            long sampleSize = json.getLong("sample_size");
+            pointNum += sampleSize;
+//            JSONArray results = json.getJSONArray("results");
+//            for (int j = 0; j < results.size(); j++) {
+//                JSONObject resultJSON = results.getJSONObject(j);
+//                pointNum += resultJSON.getJSONArray("values").size();
+//            }
         }
         LOGGER.info("complete get query point");
         return pointNum;
