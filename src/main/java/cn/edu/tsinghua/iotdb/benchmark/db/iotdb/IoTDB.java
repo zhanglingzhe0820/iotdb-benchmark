@@ -426,112 +426,111 @@ public class IoTDB implements IDatebase {
         return costTime;
     }
 
-    @Override
-    public void insertOneBatch(String device, int loopIndex, ThreadLocal<Long> totalTime,
-                               ThreadLocal<Long> errorCount, ArrayList<Long> latencies) {
-        Statement statement;
-        int[] result;
-        long errorNum = 0;
-        try {
-            statement = connection.createStatement();
-            if (!config.IS_OVERFLOW) {
-                if(config.USE_PREPARE_STATEMENT) {
-                    long genTime = 0;
-                    long startTime = System.nanoTime();
-                    for (int i = 0; i < config.BATCH_SIZE; i++) {
-                        try {
-                            genTime += executePreparedStatement(loopIndex, i, device);
-                        } catch (Exception e) {
-                            LOGGER.error("Execute Prepared Statement failed", e);
-                            errorNum ++;
-                        }
-                    }
-                    long endTime = System.nanoTime();
-                    long costTime = endTime - startTime - genTime;
-                    latencies.add(costTime);
-                    if (errorNum > 0) {
-                        LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
-                    } else {
-                        totalTime.set(totalTime.get() + costTime);
-                    }
-                    errorCount.set(errorCount.get() + errorNum);
-
-                    mySql.saveInsertProcess(loopIndex, (endTime - startTime) / unitTransfer, totalTime.get() / unitTransfer, errorNum,
-                        config.REMARK);
-                    return;
-                } else if (config.USE_SESSION){
-                    long costTime = 0;
-                    try {
-                        costTime = insertBatchUseSession(loopIndex, device);
-                    }catch (IoTDBSessionException e) {
-                        LOGGER.error("Execute Session Insert failed", e);
-                        errorNum ++;
-                    }
-                    latencies.add(costTime);
-                    if (errorNum > 0) {
-                        LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
-                    } else {
-                        totalTime.set(totalTime.get() + costTime);
-                    }
-                    errorCount.set(errorCount.get() + errorNum);
-
-                    mySql.saveInsertProcess(loopIndex, (costTime) / unitTransfer, totalTime.get() / unitTransfer, errorNum,
-                        config.REMARK);
-                    return;
-                } else {
-                    for (int i = 0; i < config.BATCH_SIZE; i++) {
-                        String sql = createSQLStatment(loopIndex, i, device);
-                        statement.addBatch(sql);
-                    }
-                }
-            } else {
-                int shuffleSize = (int) (config.OVERFLOW_RATIO * config.BATCH_SIZE);
-                int[] shuffleSequence = new int[shuffleSize];
-                for (int i = 0; i < shuffleSize; i++) {
-                    shuffleSequence[i] = i;
-                }
-                int tmp = shuffleSequence[shuffleSize - 1];
-                shuffleSequence[shuffleSize - 1] = shuffleSequence[0];
-                shuffleSequence[0] = tmp;
-                for (int i = 0; i < shuffleSize; i++) {
-                    String sql = createSQLStatment(loopIndex, shuffleSequence[i], device);
-                    statement.addBatch(sql);
-                }
-                for (int i = shuffleSize; i < config.BATCH_SIZE; i++) {
-                    String sql = createSQLStatment(loopIndex, i, device);
-                    statement.addBatch(sql);
-                }
-            }
-            long startTime = System.nanoTime();
+  @Override
+  public void insertOneBatch(String device, int loopIndex, ThreadLocal<Long> totalTime,
+      ThreadLocal<Long> errorCount, ArrayList<Long> latencies) {
+    Statement statement;
+    long errorNum = 0;
+    try {
+      statement = connection.createStatement();
+      if (!config.IS_OVERFLOW) {
+        if (config.USE_PREPARE_STATEMENT) {
+          long genTime = 0;
+          long startTime = System.nanoTime();
+          for (int i = 0; i < config.BATCH_SIZE; i++) {
             try {
-                result = statement.executeBatch();
-            } catch (BatchUpdateException e) {
-                long[] arr = e.getLargeUpdateCounts();
-                for (long i : arr) {
-                    if (i == -3) {
-                        errorNum++;
-                    }
-                }
+              genTime += executePreparedStatement(loopIndex, i, device);
+            } catch (Exception e) {
+              LOGGER.error("Execute Prepared Statement failed", e);
+              errorNum++;
             }
-            statement.clearBatch();
-            statement.close();
-            long endTime = System.nanoTime();
-            long costTime = endTime - startTime;
-            latencies.add(costTime);
-            if (errorNum > 0) {
-                LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
-            } else {
-                totalTime.set(totalTime.get() + costTime);
-            }
-            errorCount.set(errorCount.get() + errorNum);
+          }
+          long endTime = System.nanoTime();
+          long costTime = endTime - startTime - genTime;
+          latencies.add(costTime);
+          if (errorNum > 0) {
+            LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
+          } else {
+            totalTime.set(totalTime.get() + costTime);
+          }
+          errorCount.set(errorCount.get() + errorNum);
 
-            mySql.saveInsertProcess(loopIndex, (endTime - startTime) / unitTransfer, totalTime.get() / unitTransfer, errorNum,
-                    config.REMARK);
+          mySql.saveInsertProcess(loopIndex, (endTime - startTime) / unitTransfer,
+              totalTime.get() / unitTransfer, errorNum,
+              config.REMARK);
+          return;
+        } else if (config.USE_SESSION) {
+          long costTime = 0;
+          try {
+            costTime = insertBatchUseSession(loopIndex, device);
+          } catch (IoTDBSessionException e) {
+            LOGGER.error("Execute Session Insert failed", e);
+            errorNum++;
+          }
+          latencies.add(costTime);
+          if (errorNum > 0) {
+            LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
+          } else {
+            totalTime.set(totalTime.get() + costTime);
+          }
+          errorCount.set(errorCount.get() + errorNum);
 
-        } catch (SQLException e) {
-            e.printStackTrace();
+          mySql.saveInsertProcess(loopIndex, (costTime) / unitTransfer,
+              totalTime.get() / unitTransfer, errorNum,
+              config.REMARK);
+          return;
+        } else {
+          for (int i = 0; i < config.BATCH_SIZE; i++) {
+            String sql = createSQLStatment(loopIndex, i, device);
+            statement.addBatch(sql);
+          }
         }
+      } else {
+        int shuffleSize = (int) (config.OVERFLOW_RATIO * config.BATCH_SIZE);
+        int[] shuffleSequence = new int[shuffleSize];
+        for (int i = 0; i < shuffleSize; i++) {
+          shuffleSequence[i] = i;
+        }
+        int tmp = shuffleSequence[shuffleSize - 1];
+        shuffleSequence[shuffleSize - 1] = shuffleSequence[0];
+        shuffleSequence[0] = tmp;
+        for (int i = 0; i < shuffleSize; i++) {
+          String sql = createSQLStatment(loopIndex, shuffleSequence[i], device);
+          statement.addBatch(sql);
+        }
+        for (int i = shuffleSize; i < config.BATCH_SIZE; i++) {
+          String sql = createSQLStatment(loopIndex, i, device);
+          statement.addBatch(sql);
+        }
+      }
+      String msg = "";
+      long startTime = System.nanoTime();
+      try {
+        statement.executeBatch();
+      } catch (SQLException e) {
+        errorNum++;
+        LOGGER.error("Insert Batch failed", e);
+        msg = e.toString();
+      }
+      statement.clearBatch();
+      statement.close();
+      long endTime = System.nanoTime();
+      long costTime = endTime - startTime;
+      latencies.add(costTime);
+      if (errorNum > 0) {
+        LOGGER.info("Batch insert failed, the failed number is {}! ", errorNum);
+      } else {
+        totalTime.set(totalTime.get() + costTime);
+      }
+      errorCount.set(errorCount.get() + errorNum);
+      mySql.saveInsertProcess(loopIndex, (endTime - startTime) / unitTransfer,
+          totalTime.get() / unitTransfer, errorNum,
+          msg);
+
+    } catch (Exception e) {
+      LOGGER.error("Execute insertOneBatch() failed", e);
     }
+  }
 
     @Override
     public int insertOverflowOneBatch(String device, int loopIndex,
