@@ -507,7 +507,7 @@ public class IoTDB implements IDatebase {
       long startTime = System.nanoTime();
       try {
         statement.executeBatch();
-      } catch (SQLException e) {
+      } catch (Exception e) {
         errorNum++;
         LOGGER.error("Insert Batch failed", e);
         msg = e.toString();
