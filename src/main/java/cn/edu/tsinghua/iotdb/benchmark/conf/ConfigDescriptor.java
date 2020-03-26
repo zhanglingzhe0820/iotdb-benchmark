@@ -66,6 +66,11 @@ public class ConfigDescriptor {
 					default: throw new RuntimeException("not support dataset: " + dataset);
 				}
 
+				config.IS_DELETED = Boolean.parseBoolean(properties.getProperty("IS_DELETED", config.IS_DELETED+""));
+				config.IS_DELETING = Boolean.parseBoolean(properties.getProperty("IS_DELETING", config.IS_DELETING+""));
+				config.DELETE_START_TIME = properties.getProperty("DELETE_START_TIME", config.DELETE_START_TIME);
+				config.DELETE_END_TIME = properties.getProperty("DELETE_END_TIME", config.DELETE_END_TIME);
+
 				config.POINT_STEP = Long.parseLong(properties.getProperty("POINT_STEP", config.POINT_STEP+""));
 				config.BATCH_SIZE = Integer.parseInt(properties.getProperty("BATCH_SIZE", config.BATCH_SIZE +""));
 				config.SG_STRATEGY = properties.getProperty("SG_STRATEGY", "hash");

@@ -109,6 +109,9 @@ public class Config {
 
 	public String START_TIME = "2018-8-30T00:00:00+08:00";
 
+	public String DELETE_START_TIME = "2018-8-30T00:00:00+08:00";
+	public String DELETE_END_TIME = "2018-8-30T00:00:00+08:00";
+
 	/**系统性能检测时间间隔-2秒*/
  	public int INTERVAL = 0;
 
@@ -241,6 +244,10 @@ public class Config {
 	public int BATCH_EXECUTE_COUNT = 5000;
 	//mataData文件路径
 	public String METADATA_FILE_PATH = "";
+
+	//IKR测试相关参数
+	public boolean IS_DELETED = false;
+	public boolean IS_DELETING = false;
 
 	public void initInnerFunction() {
 		FunctionXml xml = null;

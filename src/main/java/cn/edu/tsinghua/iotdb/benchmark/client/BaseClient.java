@@ -49,107 +49,116 @@ public abstract class BaseClient extends Client implements Runnable {
       LOGGER.info("{} {}% syntheticWorkload is done.", currentThread, percent);
     }, 1, config.LOG_PRINT_INTERVAL, TimeUnit.SECONDS);
     long start = 0;
-    for (loopIndex = 0; loopIndex < config.LOOP; loopIndex++) {
-      Operation operation = operationController.getNextOperationType();
-      if (config.OP_INTERVAL > 0) {
-        start = System.currentTimeMillis();
+    if (config.IS_DELETING) {
+      try {
+        dbWrapper.latestPointQuery(syntheticWorkload.getLatestPointQuery());
       }
-      switch (operation) {
-        case INGESTION:
-          if (config.IS_CLIENT_BIND) {
-            try {
-              List<DeviceSchema> schema = dataSchema.getClientBindSchema().get(clientThreadId);
-              for (DeviceSchema deviceSchema : schema) {
-                if (deviceSchema.getDeviceId() < actualDeviceFloor) {
-                  Batch batch = syntheticWorkload.getOneBatch(deviceSchema, insertLoopIndex);
+      catch (WorkloadException e) {
+        LOGGER.error("Failed to do latest point query because ", e);
+      }
+    } else {
+      for (loopIndex = 0; loopIndex < config.LOOP; loopIndex++) {
+        Operation operation = operationController.getNextOperationType();
+        if (config.OP_INTERVAL > 0) {
+          start = System.currentTimeMillis();
+        }
+        switch (operation) {
+          case INGESTION:
+            if (config.IS_CLIENT_BIND) {
+              try {
+                List<DeviceSchema> schema = dataSchema.getClientBindSchema().get(clientThreadId);
+                for (DeviceSchema deviceSchema : schema) {
+                  if (deviceSchema.getDeviceId() < actualDeviceFloor) {
+                    Batch batch = syntheticWorkload.getOneBatch(deviceSchema, insertLoopIndex);
+                    dbWrapper.insertOneBatch(batch);
+                  }
+                }
+              } catch (Exception e) {
+                LOGGER.error("Failed to insert one batch data because ", e);
+              }
+              insertLoopIndex++;
+            } else {
+              try {
+                Batch batch = singletonWorkload.getOneBatch();
+                if (batch.getDeviceSchema().getDeviceId() < actualDeviceFloor) {
                   dbWrapper.insertOneBatch(batch);
                 }
+              } catch (Exception e) {
+                LOGGER.error("Failed to insert one batch data because ", e);
               }
-            } catch (Exception e) {
-              LOGGER.error("Failed to insert one batch data because ", e);
             }
-            insertLoopIndex++;
-          } else {
+            break;
+          case PRECISE_QUERY:
             try {
-              Batch batch = singletonWorkload.getOneBatch();
-              if (batch.getDeviceSchema().getDeviceId() < actualDeviceFloor) {
-                dbWrapper.insertOneBatch(batch);
-              }
+              dbWrapper.preciseQuery(syntheticWorkload.getPreciseQuery());
             } catch (Exception e) {
-              LOGGER.error("Failed to insert one batch data because ", e);
+              LOGGER.error("Failed to do precise query because ", e);
             }
-          }
-          break;
-        case PRECISE_QUERY:
-          try {
-            dbWrapper.preciseQuery(syntheticWorkload.getPreciseQuery());
-          } catch (Exception e) {
-            LOGGER.error("Failed to do precise query because ", e);
-          }
-          break;
-        case RANGE_QUERY:
-          try {
-            dbWrapper.rangeQuery(syntheticWorkload.getRangeQuery());
-          } catch (Exception e) {
-            LOGGER.error("Failed to do range query because ", e);
-          }
-          break;
-        case VALUE_RANGE_QUERY:
-          try {
-            dbWrapper.valueRangeQuery(syntheticWorkload.getValueRangeQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do range query with value filter because ", e);
-          }
-          break;
-        case AGG_RANGE_QUERY:
-          try {
-            dbWrapper.aggRangeQuery(syntheticWorkload.getAggRangeQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do aggregation range query because ", e);
-          }
-          break;
-        case AGG_VALUE_QUERY:
-          try {
-            dbWrapper.aggValueQuery(syntheticWorkload.getAggValueQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do aggregation query with value filter because ", e);
-          }
-          break;
-        case AGG_RANGE_VALUE_QUERY:
-          try {
-            dbWrapper.aggRangeValueQuery(syntheticWorkload.getAggRangeValueQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do aggregation range query with value filter because ", e);
-          }
-          break;
-        case GROUP_BY_QUERY:
-          try {
-            dbWrapper.groupByQuery(syntheticWorkload.getGroupByQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do group by query because ", e);
-          }
-          break;
-        case LATEST_POINT_QUERY:
-          try {
-            dbWrapper.latestPointQuery(syntheticWorkload.getLatestPointQuery());
-          } catch (WorkloadException e) {
-            LOGGER.error("Failed to do latest point query because ", e);
-          }
-          break;
-        default:
-          LOGGER.error("Unsupported operation type {}", operation);
-      }
-      if (config.OP_INTERVAL > 0) {
-        long elapsed = System.currentTimeMillis() - start;
-        if (elapsed < config.OP_INTERVAL) {
-          try {
-            Thread.sleep(config.OP_INTERVAL - elapsed);
-          } catch (InterruptedException e) {
-            LOGGER.error("Wait for next operation failed because ", e);
+            break;
+          case RANGE_QUERY:
+            try {
+              dbWrapper.rangeQuery(syntheticWorkload.getRangeQuery());
+            } catch (Exception e) {
+              LOGGER.error("Failed to do range query because ", e);
+            }
+            break;
+          case VALUE_RANGE_QUERY:
+            try {
+              dbWrapper.valueRangeQuery(syntheticWorkload.getValueRangeQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do range query with value filter because ", e);
+            }
+            break;
+          case AGG_RANGE_QUERY:
+            try {
+              dbWrapper.aggRangeQuery(syntheticWorkload.getAggRangeQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do aggregation range query because ", e);
+            }
+            break;
+          case AGG_VALUE_QUERY:
+            try {
+              dbWrapper.aggValueQuery(syntheticWorkload.getAggValueQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do aggregation query with value filter because ", e);
+            }
+            break;
+          case AGG_RANGE_VALUE_QUERY:
+            try {
+              dbWrapper.aggRangeValueQuery(syntheticWorkload.getAggRangeValueQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do aggregation range query with value filter because ", e);
+            }
+            break;
+          case GROUP_BY_QUERY:
+            try {
+              dbWrapper.groupByQuery(syntheticWorkload.getGroupByQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do group by query because ", e);
+            }
+            break;
+          case LATEST_POINT_QUERY:
+            try {
+              dbWrapper.latestPointQuery(syntheticWorkload.getLatestPointQuery());
+            } catch (WorkloadException e) {
+              LOGGER.error("Failed to do latest point query because ", e);
+            }
+            break;
+          default:
+            LOGGER.error("Unsupported operation type {}", operation);
+        }
+        if (config.OP_INTERVAL > 0) {
+          long elapsed = System.currentTimeMillis() - start;
+          if (elapsed < config.OP_INTERVAL) {
+            try {
+              Thread.sleep(config.OP_INTERVAL - elapsed);
+            } catch (InterruptedException e) {
+              LOGGER.error("Wait for next operation failed because ", e);
+            }
           }
         }
-      }
 
+      }
     }
     service.shutdown();
   }

@@ -149,7 +149,8 @@ public class SyntheticWorkload implements IWorkload {
     List<String> values = new ArrayList<>();
     long currentTimestamp = getCurrentTimestamp(stepOffset);
     for(int i = 0;i < config.SENSOR_NUMBER;i++) {
-      values.add(workloadValues[i][(int)(Math.abs(stepOffset) % config.WORKLOAD_BUFFER_SIZE)]);
+      values.add(String.format(DECIMAL_FORMAT, currentTimestamp));
+      //values.add(workloadValues[i][(int)(Math.abs(stepOffset) % config.WORKLOAD_BUFFER_SIZE)]);
     }
     batch.add(currentTimestamp, values);
   }
@@ -176,14 +177,18 @@ public class SyntheticWorkload implements IWorkload {
     for (int m = 0; m < config.DEVICE_NUMBER * config.REAL_INSERT_RATE; m++) {
       clientDevicesIndex.add(m);
     }
-    Collections.shuffle(clientDevicesIndex, queryDeviceRandom);
+    //Collections.shuffle(clientDevicesIndex, queryDeviceRandom);
     for (int m = 0; m < config.QUERY_DEVICE_NUM; m++) {
       DeviceSchema deviceSchema = new DeviceSchema(clientDevicesIndex.get(m));
       List<String> sensors = deviceSchema.getSensors();
-      Collections.shuffle(sensors, queryDeviceRandom);
+      //Collections.shuffle(sensors, queryDeviceRandom);
       List<String> querySensors = new ArrayList<>();
-      for (int i = 0; i < config.QUERY_SENSOR_NUM; i++) {
-        querySensors.add(sensors.get(i));
+      if (config.IS_DELETING == false) {
+        for (int i = 0; i < config.QUERY_SENSOR_NUM; i++) {
+          querySensors.add(sensors.get(i));
+        }
+      } else {
+        querySensors.add(sensors.get(0));
       }
       deviceSchema.setSensors(querySensors);
       queryDevices.add(deviceSchema);
@@ -257,6 +262,7 @@ public class SyntheticWorkload implements IWorkload {
         config.TIME_UNIT);
   }
 
+  // in this time change this to the last function
   public LatestPointQuery getLatestPointQuery() throws WorkloadException {
     List<DeviceSchema> queryDevices = getQueryDeviceSchemaList();
     long startTimestamp = getQueryStartTimestamp();

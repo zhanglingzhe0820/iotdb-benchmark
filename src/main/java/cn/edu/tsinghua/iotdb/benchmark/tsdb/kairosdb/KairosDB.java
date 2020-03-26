@@ -2,6 +2,7 @@ package cn.edu.tsinghua.iotdb.benchmark.tsdb.kairosdb;
 
 import cn.edu.tsinghua.iotdb.benchmark.conf.Config;
 import cn.edu.tsinghua.iotdb.benchmark.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iotdb.benchmark.conf.Constants;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Status;
 import cn.edu.tsinghua.iotdb.benchmark.model.KairosDataModel;
 import cn.edu.tsinghua.iotdb.benchmark.tsdb.IDatabase;
@@ -38,6 +39,7 @@ import org.kairosdb.client.response.QueryResult;
 import org.kairosdb.client.response.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.kairosdb.client.builder.DataPoint;
 
 public class KairosDB implements IDatabase {
 
@@ -149,7 +151,7 @@ public class KairosDB implements IDatabase {
   public Status preciseQuery(PreciseQuery preciseQuery) {
     long time = preciseQuery.getTimestamp();
     QueryBuilder builder = constructBuilder(time, time, preciseQuery.getDeviceSchema());
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, false);
   }
 
   @Override
@@ -157,7 +159,7 @@ public class KairosDB implements IDatabase {
     long startTime = rangeQuery.getStartTimestamp();
     long endTime = rangeQuery.getEndTimestamp();
     QueryBuilder builder = constructBuilder(startTime, endTime, rangeQuery.getDeviceSchema());
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, false);
   }
 
   @Override
@@ -168,7 +170,7 @@ public class KairosDB implements IDatabase {
     Aggregator filterAggre = AggregatorFactory
         .createFilterAggregator(FilterOperation.LTE, valueRangeQuery.getValueThreshold());
     addAggreForQuery(builder, filterAggre);
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, true);
   }
 
   @Override
@@ -181,7 +183,7 @@ public class KairosDB implements IDatabase {
     Aggregator aggregator = new SamplingAggregator(aggRangeQuery.getAggFun(), timeInterval,
         TimeUnit.MILLISECONDS);
     addAggreForQuery(builder, aggregator);
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, true);
   }
 
   @Override
@@ -193,7 +195,7 @@ public class KairosDB implements IDatabase {
     Aggregator filterAggre = AggregatorFactory
         .createFilterAggregator(FilterOperation.LTE, aggValueQuery.getValueThreshold());
     addAggreForQuery(builder, filterAggre, funAggre);
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, true);
   }
 
   @Override
@@ -208,7 +210,7 @@ public class KairosDB implements IDatabase {
     Aggregator filterAggre = AggregatorFactory
         .createFilterAggregator(FilterOperation.LTE, aggRangeValueQuery.getValueThreshold());
     addAggreForQuery(builder, filterAggre, funAggre);
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, true);
   }
 
   @Override
@@ -219,33 +221,69 @@ public class KairosDB implements IDatabase {
     Aggregator funAggre = new SamplingAggregator(groupByQuery.getAggFun(),
         (int) groupByQuery.getGranularity(), TimeUnit.MILLISECONDS);
     addAggreForQuery(builder, funAggre);
-    return executeOneQuery(builder);
+    return executeOneQuery(builder, true);
   }
 
   @Override
   public Status latestPointQuery(LatestPointQuery latestPointQuery) {
     //latestPointQuery
-    long startTime = latestPointQuery.getStartTimestamp();
-    long endTime = latestPointQuery.getEndTimestamp();
-    QueryBuilder builder = constructBuilder(startTime, endTime, latestPointQuery.getDeviceSchema());
-    Aggregator aggregator = AggregatorFactory.createLastAggregator(5000, TimeUnit.YEARS);
-    addAggreForQuery(builder, aggregator);
-    return executeOneQuery(builder);
+    if (config.IS_DELETING == false) {
+      long startTime = latestPointQuery.getStartTimestamp();
+      long endTime = latestPointQuery.getEndTimestamp();
+      QueryBuilder builder = constructBuilder(startTime, endTime, latestPointQuery.getDeviceSchema());
+      Aggregator aggregator = AggregatorFactory.createLastAggregator(5000, TimeUnit.YEARS);
+      addAggreForQuery(builder, aggregator);
+      return executeOneQuery(builder, true);
+    }
+    else {
+      long startTime = Constants.DELETE_START_TIMESTAMP;
+      long endTime = Constants.DELETE_END_TIMESTAMP;
+      QueryBuilder builder = constructBuilder(startTime, endTime, latestPointQuery.getDeviceSchema());
+      return executeOneDelete(builder);
+    }
   }
 
-  private Status executeOneQuery(QueryBuilder builder) {
+  private Status executeOneQuery(QueryBuilder builder, boolean isAggregate) {
     LOGGER.debug("[JSON] {}", builder);
     int queryResultPointNum = 0;
     try {
-
+      long startTime = builder.getStartAbsolute().getTime();
+      long endTime = builder.getEndAbsolute().getTime();
       QueryResponse response = client.query(builder);
 
+      // confirm the result is the willing result
       for (QueryResult query : response.getQueries()) {
         for (Result result : query.getResults()) {
-          queryResultPointNum += result.getDataPoints().size();
+          if(config.IS_DELETED == true) {
+            if (result.getName() == "s_0") {
+              throw new Exception("Get the deleted sensor");
+            }
+          }
+          int resSize = result.getDataPoints().size();
+          queryResultPointNum += resSize;
+          for (int i = 0; i < resSize; i++) {
+            DataPoint data = result.getDataPoints().get(i);
+            if (isAggregate == true) {
+
+            } else {
+              if (data.getTimestamp() != data.longValue()) {
+                throw new Exception("Insert the wrong data");
+              }
+            }
+          }
         }
       }
       return new Status(true, queryResultPointNum);
+    } catch (Exception e) {
+      return new Status(false, 0, e, builder.toString());
+    }
+  }
+
+  private Status executeOneDelete(QueryBuilder builder) {
+    LOGGER.debug("[JSON] {}", builder);
+    try {
+      client.delete(builder);
+      return new Status(true, 0);
     } catch (Exception e) {
       return new Status(false, 0, e, builder.toString());
     }
