@@ -266,9 +266,10 @@ public class KairosDB implements IDatabase {
             if (isAggregate == true) {
 
             } else {
+		/*
               if (data.getTimestamp() != data.longValue()) {
                 throw new Exception("Insert the wrong data");
-              }
+              }*/
             }
           }
         }

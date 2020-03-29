@@ -148,8 +148,9 @@ public class SyntheticWorkload implements IWorkload {
   static void addOneRowIntoBatch(Batch batch, long stepOffset) {
     List<String> values = new ArrayList<>();
     long currentTimestamp = getCurrentTimestamp(stepOffset);
+    double timeValue = Long.valueOf(currentTimestamp).doubleValue();
     for(int i = 0;i < config.SENSOR_NUMBER;i++) {
-      values.add(String.format(DECIMAL_FORMAT, currentTimestamp));
+      values.add(String.format(DECIMAL_FORMAT, timeValue));
       //values.add(workloadValues[i][(int)(Math.abs(stepOffset) % config.WORKLOAD_BUFFER_SIZE)]);
     }
     batch.add(currentTimestamp, values);
