@@ -49,6 +49,7 @@ public class App {
     private static final double NANO_TO_SECOND = 1000000000.0d;
 
     public static void main(String[] args) throws SQLException {
+        args = new String[]{"-cf", "/Users/East/projects/IoTDB/iotdb-benchmark/conf/config.properties"};
 
         CommandCli cli = new CommandCli();
         if (!cli.init(args)) {
