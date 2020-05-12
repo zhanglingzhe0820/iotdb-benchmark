@@ -6,10 +6,12 @@ import cn.edu.tsinghua.iotdb.benchmark.conf.Constants;
 import cn.edu.tsinghua.iotdb.benchmark.measurement.Status;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Batch;
 import cn.edu.tsinghua.iotdb.benchmark.workload.ingestion.Record;
-import org.apache.iotdb.session.IoTDBSessionException;
+import org.apache.iotdb.rpc.BatchExecutionException;
+import org.apache.iotdb.rpc.IoTDBConnectionException;
 import org.apache.iotdb.session.Session;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.read.common.Path;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.write.record.RowBatch;
 import org.apache.iotdb.tsfile.write.schema.MeasurementSchema;
@@ -25,10 +27,10 @@ public class IoTDBSession extends IoTDB {
 
   public IoTDBSession() {
     super();
-    session = new Session(config.HOST, config.PORT, Constants.USER, Constants.PASSWD);
     try {
+      session = new Session(config.HOST, config.PORT, Constants.USER, Constants.PASSWD);
       session.open();
-    } catch (IoTDBSessionException e) {
+    } catch (IoTDBConnectionException e) {
       LOGGER.error("Failed to add session", e);
     }
   }
@@ -37,7 +39,7 @@ public class IoTDBSession extends IoTDB {
   public Status insertOneBatch(Batch batch) {
     Schema schema = new Schema();
     for (String sensor : batch.getDeviceSchema().getSensors()) {
-      schema.registerMeasurement(
+      schema.registerTimeseries(new Path(sensor),
           new MeasurementSchema(sensor, Enum.valueOf(TSDataType.class, config.DATA_TYPE),
               Enum.valueOf(TSEncoding.class, config.ENCODING)));
     }
@@ -52,8 +54,9 @@ public class IoTDBSession extends IoTDB {
       Record record = batch.getRecords().get(recordIndex);
       long currentTime = record.getTimestamp();
       timestamps[recordIndex] = currentTime;
-      for (int recordValueIndex = 0; recordValueIndex < record.getRecordDataValue().size(); recordValueIndex++) {
-        if(!config.DATA_TYPE.equals("TEXT")) {
+      for (int recordValueIndex = 0; recordValueIndex < record.getRecordDataValue().size();
+          recordValueIndex++) {
+        if (!config.DATA_TYPE.equals("TEXT")) {
           double[] sensors = (double[]) values[recordValueIndex];
           sensors[recordIndex] = Double.parseDouble(record.getRecordDataValue().get(
               recordValueIndex));
@@ -67,7 +70,7 @@ public class IoTDBSession extends IoTDB {
       session.insertBatch(rowBatch);
       rowBatch.reset();
       return new Status(true);
-    } catch (IoTDBSessionException e) {
+    } catch (BatchExecutionException | IoTDBConnectionException e) {
       return new Status(false, 0, e, e.toString());
     }
   }
